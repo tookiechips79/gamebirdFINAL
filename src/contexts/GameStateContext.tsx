@@ -38,7 +38,6 @@ interface GameState {
   timerSeconds: number;
   isTimerRunning: boolean;
   timerStartTime: number | null;
-  arenaId?: string; // Add arenaId to GameState interface
 }
 
 interface LocalAdminState {
@@ -252,7 +251,7 @@ export const GameStateProvider: React.FC<{ children: ReactNode }> = ({ children 
   
   // Single arena state (one_pocket only)
   // FULL SERVER-AUTHORITATIVE MODEL: Initialize with defaults, server will send actual state
-  const [gameStateOnePocket, setGameStateOnePocket] = useState<GameState>(defaultGameStateOnePocket);
+  const [gameStateOnePocket, setGameStateOnePocket] = useState<GameState>(() => loadGameStateFromStorage('one_pocket'));
   const [localAdminStateOnePocket, setLocalAdminStateOnePocket] = useState<LocalAdminState>(() => loadAdminStateFromStorage('one_pocket'));
 
   // Single arena: one_pocket
@@ -321,12 +320,8 @@ export const GameStateProvider: React.FC<{ children: ReactNode }> = ({ children 
   // Fallback (if server doesn't respond): Use localStorage to prevent black screen
   // This ensures good UX while maintaining server-authoritative architecture
   
-  // Only save as fallback for emergency scenarios
   useEffect(() => {
-    if (gameStateOnePocket && gameStateOnePocket.teamAName !== "Player A") {
-      // Only save if state has actual data (not defaults)
-      saveGameStateToStorage('one_pocket', gameStateOnePocket);
-    }
+    saveGameStateToStorage('one_pocket', gameStateOnePocket);
   }, [gameStateOnePocket]);
 
   // CROSS-TAB SYNC: Listen for storage changes from other tabs/windows
@@ -341,16 +336,6 @@ export const GameStateProvider: React.FC<{ children: ReactNode }> = ({ children 
           setGameStateOnePocket(prev => ({ ...prev, ...newState }));
         } catch (e) {
           console.error('Failed to sync game state from other tab:', e);
-        }
-      }
-      
-      // Load admin state if it changed in another tab
-      if (event.key === STORAGE_KEY_ADMIN_DEFAULT && currentArenaId === 'default') {
-        try {
-          const newState = JSON.parse(event.newValue || '{}');
-          setLocalAdminStateDefault(newState);
-        } catch (e) {
-          console.error('Failed to sync admin state from other tab:', e);
         }
       }
       
@@ -645,39 +630,6 @@ export const GameStateProvider: React.FC<{ children: ReactNode }> = ({ children 
       });
     });
 
-    // CRITICAL: Listen for game state updates from server (new browser sync)
-    if (socketIOService.socket) {
-      socketIOService.socket.off('game-state-update');
-      socketIOService.socket.on('game-state-update', (data) => {
-        console.log('📥 [GAME STATE UPDATE] Received from server:', data);
-        validateArenaAndUpdate(data.arenaId, () => {
-          setCurrentGameState(prevState => ({
-            ...prevState,
-            ...data
-          }));
-        });
-      });
-    }
-
-    // CRITICAL: Listen for bet updates from server (new browser sync)
-    if (socketIOService.socket) {
-      socketIOService.socket.off('bet-update');
-      socketIOService.socket.on('bet-update', (data) => {
-        console.log('📥 [BET UPDATE] Received from server:', data);
-        validateArenaAndUpdate(data.arenaId, () => {
-          setCurrentGameState(prevState => ({
-            ...prevState,
-            teamAQueue: data.teamAQueue || prevState.teamAQueue,
-            teamBQueue: data.teamBQueue || prevState.teamBQueue,
-            bookedBets: data.bookedBets || prevState.bookedBets,
-            nextTeamAQueue: data.nextTeamAQueue || prevState.nextTeamAQueue,
-            nextTeamBQueue: data.nextTeamBQueue || prevState.nextTeamBQueue,
-            nextBookedBets: data.nextGameBets || prevState.nextBookedBets
-          }));
-        });
-      });
-    }
-
     // Listen for team names updates from other devices (CROSS-DEVICE SYNC)
     socketIOService.onTeamNamesUpdate((teamNamesData) => {
       validateArenaAndUpdate(teamNamesData.arenaId, () => {
@@ -813,116 +765,106 @@ export const GameStateProvider: React.FC<{ children: ReactNode }> = ({ children 
       }
     };
 
-    // Add event listeners for mobile app lifecycle
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Mobile-specific events
-    window.addEventListener('focus', handleVisibilityChange);
-    window.addEventListener('blur', () => {
+    const handleBlur = () => {
       console.log('📱 Window lost focus');
-    });
-    
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleVisibilityChange);
-      window.removeEventListener('blur', () => {});
+      window.removeEventListener('blur', handleBlur);
     };
   }, [currentArenaId, gameStateOnePocket.isTimerRunning]);
+
+  // Stable ref that accumulates updates across rapid calls so debounce fires once
+  const pendingEmitRef = useRef<Partial<GameState>>({});
+  const currentGameStateRef = useRef(gameStateOnePocket);
+  useEffect(() => { currentGameStateRef.current = gameStateOnePocket; }, [gameStateOnePocket]);
+
+  const debouncedEmitRef = useRef(
+    debounce(() => {
+      if (!socketIOService.isSocketConnected()) return;
+      const updates = pendingEmitRef.current;
+      pendingEmitRef.current = {};
+      const cur = currentGameStateRef.current;
+
+      // Emit bet-related updates
+      if (updates.teamAQueue !== undefined || updates.teamBQueue !== undefined || updates.bookedBets !== undefined || updates.nextBookedBets !== undefined || updates.nextTeamAQueue !== undefined || updates.nextTeamBQueue !== undefined) {
+        const betData: BetSyncData = {};
+        if (updates.teamAQueue !== undefined) betData.teamAQueue = updates.teamAQueue;
+        if (updates.teamBQueue !== undefined) betData.teamBQueue = updates.teamBQueue;
+        if (updates.bookedBets !== undefined) betData.bookedBets = updates.bookedBets;
+        if (updates.nextBookedBets !== undefined) betData.nextGameBets = updates.nextBookedBets;
+        if (updates.nextTeamAQueue !== undefined) betData.nextTeamAQueue = updates.nextTeamAQueue;
+        if (updates.nextTeamBQueue !== undefined) betData.nextTeamBQueue = updates.nextTeamBQueue;
+        socketIOService.emitBetUpdate(betData);
+      }
+
+      // Emit total booked coins updates
+      if (updates.totalBookedAmount !== undefined || updates.nextTotalBookedAmount !== undefined) {
+        socketIOService.emitTotalBookedCoinsUpdate(
+          updates.totalBookedAmount ?? cur.totalBookedAmount,
+          updates.nextTotalBookedAmount ?? cur.nextTotalBookedAmount
+        );
+      }
+
+      // Emit game state updates (scores, balls, etc.)
+      if (updates.teamAGames !== undefined || updates.teamBGames !== undefined ||
+          updates.teamABalls !== undefined || updates.teamBBalls !== undefined ||
+          updates.isGameActive !== undefined || updates.winner !== undefined ||
+          updates.currentGameNumber !== undefined || updates.teamAHasBreak !== undefined ||
+          updates.teamAName || updates.teamBName || updates.gameDescription) {
+        const gameStateData: GameStateSyncData = {};
+        if (updates.teamAGames !== undefined) gameStateData.teamAScore = updates.teamAGames;
+        if (updates.teamBGames !== undefined) gameStateData.teamBScore = updates.teamBGames;
+        if (updates.teamABalls !== undefined) gameStateData.teamABalls = updates.teamABalls;
+        if (updates.teamBBalls !== undefined) gameStateData.teamBBalls = updates.teamBBalls;
+        if (updates.isGameActive !== undefined) gameStateData.isGameActive = updates.isGameActive;
+        if (updates.winner !== undefined) gameStateData.winner = updates.winner;
+        if (updates.currentGameNumber !== undefined) gameStateData.currentGameNumber = updates.currentGameNumber;
+        if (updates.teamAHasBreak !== undefined) {
+          gameStateData.teamAHasBreak = updates.teamAHasBreak;
+          socketIOService.emitBreakStatusUpdate(updates.teamAHasBreak);
+        }
+        if (updates.teamAName || updates.teamBName || updates.gameDescription) {
+          gameStateData.gameInfo = {
+            teamAName: updates.teamAName || cur.teamAName,
+            teamBName: updates.teamBName || cur.teamBName,
+            gameTitle: "Game Bird",
+            gameDescription: updates.gameDescription || cur.gameDescription
+          };
+          if (updates.teamAName || updates.teamBName) {
+            socketIOService.emitTeamNamesUpdate(
+              updates.teamAName || cur.teamAName,
+              updates.teamBName || cur.teamBName
+            );
+          }
+        }
+        console.log(`🔴 [EMIT] updateGameState emitting:`, { teamAGames: updates.teamAGames, teamBGames: updates.teamBGames, teamABalls: updates.teamABalls, teamBBalls: updates.teamBBalls });
+        socketIOService.emitGameStateUpdate(gameStateData);
+        socketIOService.emitScoreUpdate({
+          teamAScore: updates.teamAGames ?? cur.teamAGames,
+          teamBScore: updates.teamBGames ?? cur.teamBGames
+        });
+      }
+    }, 50)
+  );
 
   const updateGameState = useCallback((updates: Partial<GameState>) => {
     setCurrentGameState(prevState => {
       const newState = { ...prevState, ...updates };
-      
-      // Update game label when game number changes
       if (updates.currentGameNumber !== undefined) {
         newState.gameLabel = `GAME ${updates.currentGameNumber}`;
       }
-      
-      // Emit changes to other clients via Socket.IO (optimized - batched & debounced)
-      if (socketIOService.isSocketConnected()) {
-        // Batch and debounce all socket emissions to reduce network traffic
-        const emitBatchedUpdates = debounce(() => {
-          // Emit bet-related updates
-          if (updates.teamAQueue !== undefined || updates.teamBQueue !== undefined || updates.bookedBets !== undefined || updates.nextBookedBets !== undefined || updates.nextTeamAQueue !== undefined || updates.nextTeamBQueue !== undefined) {
-            const betData: BetSyncData = {};
-            if (updates.teamAQueue !== undefined) betData.teamAQueue = updates.teamAQueue;
-            if (updates.teamBQueue !== undefined) betData.teamBQueue = updates.teamBQueue;
-            if (updates.bookedBets !== undefined) betData.bookedBets = updates.bookedBets;
-            if (updates.nextBookedBets !== undefined) betData.nextGameBets = updates.nextBookedBets;
-            if (updates.nextTeamAQueue !== undefined) betData.nextTeamAQueue = updates.nextTeamAQueue;
-            if (updates.nextTeamBQueue !== undefined) betData.nextTeamBQueue = updates.nextTeamBQueue;
-            socketIOService.emitBetUpdate(betData);
-          }
-          
-          // Emit total booked coins updates
-          if (updates.totalBookedAmount !== undefined || updates.nextTotalBookedAmount !== undefined) {
-            socketIOService.emitTotalBookedCoinsUpdate(
-              updates.totalBookedAmount !== undefined ? updates.totalBookedAmount : newState.totalBookedAmount,
-              updates.nextTotalBookedAmount !== undefined ? updates.nextTotalBookedAmount : newState.nextTotalBookedAmount
-            );
-          }
-          
-          // Emit game state updates (scores, balls, etc.) - BATCHED
-          if (updates.teamAGames !== undefined ||
-              updates.teamBGames !== undefined ||
-              updates.teamABalls !== undefined || updates.teamBBalls !== undefined ||
-              updates.isGameActive !== undefined || updates.winner !== undefined ||
-              updates.currentGameNumber !== undefined ||
-              updates.teamAHasBreak !== undefined ||
-              updates.teamAName || updates.teamBName || updates.gameDescription) {
-            const gameStateData: GameStateSyncData = {};
-            if (updates.teamAGames !== undefined) gameStateData.teamAScore = updates.teamAGames;
-            if (updates.teamBGames !== undefined) gameStateData.teamBScore = updates.teamBGames;
-            if (updates.teamABalls !== undefined) gameStateData.teamABalls = updates.teamABalls;
-            if (updates.teamBBalls !== undefined) gameStateData.teamBBalls = updates.teamBBalls;
-            if (updates.isGameActive !== undefined) gameStateData.isGameActive = updates.isGameActive;
-            if (updates.winner !== undefined) gameStateData.winner = updates.winner;
-            if (updates.currentGameNumber !== undefined) gameStateData.currentGameNumber = updates.currentGameNumber;
-            if (updates.teamAHasBreak !== undefined) {
-              gameStateData.teamAHasBreak = updates.teamAHasBreak;
-              socketIOService.emitBreakStatusUpdate(updates.teamAHasBreak);
-            }
-            if (updates.teamAName || updates.teamBName || updates.gameDescription) {
-              gameStateData.gameInfo = {
-                teamAName: updates.teamAName || prevState.teamAName,
-                teamBName: updates.teamBName || prevState.teamBName,
-                gameTitle: "Game Bird",
-                gameDescription: updates.gameDescription || prevState.gameDescription
-              };
-              
-              // EMIT TEAM NAMES SEPARATELY FOR CROSS-DEVICE SYNC
-              if (updates.teamAName || updates.teamBName) {
-                socketIOService.emitTeamNamesUpdate(
-                  updates.teamAName || prevState.teamAName,
-                  updates.teamBName || prevState.teamBName
-                );
-              }
-            }
-            
-            // 🎯 DEBUG: Log which arena is emitting updates
-            const getArenaLabel = (arenaId: string) => arenaId === 'one_pocket' ? '🎯 [1-POCKET]' : '🎱 [9-BALL]';
-            const arenaLabel = getArenaLabel(currentArenaId);
-            console.log(`🔴 [EMIT] ${arenaLabel} updateGameState is emitting updates:`, { 
-              teamAGames: updates.teamAGames, 
-              teamBGames: updates.teamBGames,
-              teamABalls: updates.teamABalls,
-              teamBBalls: updates.teamBBalls,
-              currentArenaId
-            });
-            
-            socketIOService.emitGameStateUpdate(gameStateData);
-            socketIOService.emitScoreUpdate({
-              teamAScore: updates.teamAGames !== undefined ? updates.teamAGames : prevState.teamAGames,
-              teamBScore: updates.teamBGames !== undefined ? updates.teamBGames : prevState.teamBGames
-            });
-          }
-        }, 50); // Debounce all emissions by 50ms for batching
-        
-        emitBatchedUpdates();
-      }
-      
       return newState;
     });
+    // Accumulate updates and schedule a single debounced emit
+    pendingEmitRef.current = { ...pendingEmitRef.current, ...updates };
+    debouncedEmitRef.current();
   }, []);
 
   const updateLocalAdminState = (updates: Partial<LocalAdminState>) => {

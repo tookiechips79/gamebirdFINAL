@@ -27,7 +27,6 @@ import { coinAuditService } from "@/services/coinAudit";
 import { useSound } from "@/hooks/use-sound";
 import SocketIOStatus from "@/components/SocketIOStatus";
 
-
 // ============================================================================
 // ONE POCKET ARENA - SEPARATE BETTING QUEUE WITH INDEPENDENT DATA
 // This arena syncs only with itself, not with the 9 Ball Arena
@@ -47,10 +46,7 @@ const OnePocketArena = () => {
     betHistory,
     processPendingBets,
     getAvailableCredits,
-    getPendingBetAmount,
-    refundPendingBet,
-    addPendingBet,
-    users
+    getPendingBetAmount
   } = useUser();
 
   // ⚠️ CRITICAL: DO NOT call addCredits() for unmatched bets
@@ -90,17 +86,6 @@ const OnePocketArena = () => {
 
   // Ref to track if component is unmounting (switching arenas)
   const isUnmountingRef = useRef(false);
-
-  // Ref to prevent rapid bet placement/deletion (debounce)
-  const lastBetPlacementTimeRef = useRef<number>(0);
-  const lastBetDeletionTimeRef = useRef<number>(0);
-  const BET_PLACEMENT_COOLDOWN_MS = 1000; // 1-second cooldown for bet placement to prevent data loss
-  const BET_DELETION_COOLDOWN_MS = 1000; // 1-second cooldown for bet deletion
-
-  const [winDisplay, setWinDisplay] = useState<{ amount: number; teamSide: 'A' | 'B' | null }>({ amount: 0, teamSide: null });
-  const [loseDisplay, setLoseDisplay] = useState<{ amount: number; teamSide: 'A' | 'B' | null }>({ amount: 0, teamSide: null });
-  
-  // ✅ NEW: State for win flash animations
 
   // Extract state from gameState context
   const {
@@ -232,7 +217,7 @@ const OnePocketArena = () => {
         muteCheerOnWinRef.current = false; // Reset the flag
       } else {
         console.log(`🔊 [WIN SOUND - ONE POCKET] Game won! New game number: ${newGameNumber}`);
-        // playCheerSound(); // Temporarily disabled to prevent 404 errors
+        playCheerSound();
       }
     }
     
@@ -263,7 +248,7 @@ const OnePocketArena = () => {
         if (teamBBallsIncreased) {
           console.log(`🔊 [BALL SOUND - ONE POCKET] Team B ball count increased from ${prevStateRef.current.teamBBalls} to ${teamBBalls}`);
         }
-      // playPoolSound(); // Temporarily disabled to prevent 404 errors
+        playPoolSound();
       }
     }
     
@@ -280,7 +265,7 @@ const OnePocketArena = () => {
         if (teamBBallsDecreased) {
           console.log(`🔊 [BALL MINUS SOUND - ONE POCKET] Team B ball count decreased from ${prevStateRef.current.teamBBalls} to ${teamBBalls}`);
         }
-      // playBooSound(); // Temporarily disabled to prevent 404 errors
+        playBooSound();
       }
     }
     
@@ -290,7 +275,6 @@ const OnePocketArena = () => {
       prevStateRef.current.teamBBalls = teamBBalls;
     }
   }, [teamABalls, teamBBalls, playPoolSound, playBooSound]);
-
 
   const generateBetId = () => {
     // Generate a 7-digit unique ID using counter + random number
@@ -445,31 +429,26 @@ const OnePocketArena = () => {
   };
   
   const processBetsForGameWin = async (winningTeam: 'A' | 'B', duration: number) => {
-    // ✅ SIMPLIFIED: Process game win - winners get their bet back + loser's matched amount
+    // Calculate each user's balance before ANY bet this game was placed.
+    // Bets are deducted immediately when placed (pending bets system), so
+    // true pre-game balance = currentCredits + sum(all bets placed this game by that user).
+    const allBets = [...teamAQueue, ...teamBQueue];
+    const betSumByUser: Record<string, number> = {};
+    allBets.forEach(b => { betSumByUser[b.userId] = (betSumByUser[b.userId] || 0) + b.amount; });
+    const preGameBalances: Record<string, number> = {};
+    Object.keys(betSumByUser).forEach(id => {
+      const u = getUserById(id);
+      if (u) preGameBalances[id] = u.credits + betSumByUser[id];
+    });
+
     console.log(`🎮 [GAME-WIN] Processing bets for Game #${currentGameNumber}, winning team: ${winningTeam}`);
     console.log(`🎮 [GAME-WIN] Team A bets: ${teamAQueue.length}, Team B bets: ${teamBQueue.length}`);
     console.log(`🎮 [GAME-WIN] Team A amount: ${teamAQueue.reduce((s, b) => s + b.amount, 0)}, Team B amount: ${teamBQueue.reduce((s, b) => s + b.amount, 0)}`);
-    // Reset win/lose displays before processing bets to prevent showing stale data
-    setWinDisplay({ amount: 0, teamSide: null });
-    setLoseDisplay({ amount: 0, teamSide: null });
-    await processPendingBets(currentGameNumber, winningTeam, teamAQueue, teamBQueue,
-      (winningAmount, winningTeamSide) => {
-        const winningsOnly = winningAmount / 2; // Display only the profit // winningAmount now represents only the winnings (profit)
-        console.log(`✨ [WIN-DISPLAY] Setting win display for ${winningTeamSide}: +${winningsOnly} coins (total returned: ${winningAmount})`);
-        setWinDisplay({ amount: winningsOnly, teamSide: winningTeamSide });
-        // Clear win display after 3 seconds
-        setTimeout(() => setWinDisplay({ amount: 0, teamSide: null }), 5000);
-      },
-      (losingAmount, losingTeamSide) => {
-        console.log(`💔 [LOSE-DISPLAY - DEBUG] onLose callback triggered! Losing Amount: ${losingAmount}, Losing Team Side: ${losingTeamSide}`);
-        setLoseDisplay({ amount: losingAmount, teamSide: losingTeamSide });
-//        setTimeout(() => setLoseDisplay({ amount: 0, teamSide: null }), 3000);
-      }
-    );
+    await processPendingBets(currentGameNumber, winningTeam, teamAQueue, teamBQueue, bookedBets);
     
     // 📊 START COIN AUDIT - Take pre-game snapshot
     const gameId = `game-${Date.now()}`;
-    const allUsers = users;
+    const allUsers = Object.values(gameState.users || {});
     const preGameAudit = coinAuditService.startGameAudit(
       gameId,
       gameState.arenaId || 'unknown',
@@ -477,6 +456,15 @@ const OnePocketArena = () => {
     );
     
     // Include ALL bets (both booked and unbooked) in game history for accurate tracking
+    // Track running deductions per user so each bet shows balance before THAT specific bet
+    const runningDeductions: Record<string, number> = {};
+    const getBalanceBeforeBet = (userId: string, betAmount: number) => {
+      const prior = runningDeductions[userId] || 0;
+      const balBefore = (preGameBalances[userId] ?? 0) - prior;
+      runningDeductions[userId] = prior + betAmount;
+      return balBefore;
+    };
+
     const teamABets = teamAQueue.map(bet => {
       const user = getUserById(bet.userId);
       return {
@@ -484,10 +472,11 @@ const OnePocketArena = () => {
         userName: bet.userName || user?.name || 'User',
         amount: bet.amount,
         won: winningTeam === 'A',
-        booked: bet.booked
+        booked: bet.booked,
+        startingBalance: getBalanceBeforeBet(bet.userId, bet.amount),
       };
     });
-    
+
     const teamBBets = teamBQueue.map(bet => {
       const user = getUserById(bet.userId);
       return {
@@ -495,7 +484,8 @@ const OnePocketArena = () => {
         userName: bet.userName || user?.name || 'User',
         amount: bet.amount,
         won: winningTeam === 'B',
-        booked: bet.booked
+        booked: bet.booked,
+        startingBalance: getBalanceBeforeBet(bet.userId, bet.amount),
       };
     });
     
@@ -513,7 +503,7 @@ const OnePocketArena = () => {
       winningTeam,
       teamABalls,
       teamBBalls,
-      breakingTeam: (teamAHasBreak ? 'A' : 'B') as ('A' | 'B'),
+      breakingTeam: teamAHasBreak ? 'A' : 'B',
       duration,
       bets: {
         teamA: teamABets,
@@ -530,68 +520,43 @@ const OnePocketArena = () => {
     // The old logic below has been removed to prevent coin duplication
     console.log(`✅ [BET-PROCESSING] Booked bets (${bookedBets.length}) already processed via processPendingBets()`);
     
-    // ✅ UNIFIED BET PROCESSING FOR NEXT-GAME BETS
-    // Use the same verified system as current game bets!
-    console.log(`🔥 [NEXT-GAME-PROCESSING] Processing next-game bets with same verification as current game...`);
+    // ✅ NEW: Remove unmatched bets from PENDING (don't create coins!)
+    // With pending bets system, unmatched bets were never deducted
+    // So just remove them from pending - no refunds needed
     
-    // Process next-game matched bets the same way as current game (with double-check)
-    // This ensures winners get correct payout + original bet return
-    console.log(`\n🎮 [NEXT-GAME-PAYOUT] Next game bets becoming current game bets`);
-    console.log(`   Team A: ${nextTeamAQueue.length} bets`);
-    console.log(`   Team B: ${nextTeamBQueue.length} bets`);
+    // 1. Remove unmatched CURRENT game bets from pending
+    const unmatchedCurrentBetsA = teamAQueue.filter(bet => !bet.booked);
+    const unmatchedCurrentBetsB = teamBQueue.filter(bet => !bet.booked);
+    const allUnmatchedCurrentBets = [...unmatchedCurrentBetsA, ...unmatchedCurrentBetsB];
     
-    // ✅ Only refund UNMATCHED next-game bets
-    const unmatchedNextBetsA = nextTeamAQueue.filter(bet => !bet.booked);
-    const unmatchedNextBetsB = nextTeamBQueue.filter(bet => !bet.booked);
-    
-    console.log(`\n🔥 [UNMATCHED-NEXT] Unmatched next-game bets (need refund):`);
-    console.log(`   Team A unmatched: ${unmatchedNextBetsA.length}`, unmatchedNextBetsA);
-    console.log(`   Team B unmatched: ${unmatchedNextBetsB.length}`, unmatchedNextBetsB);
-    
-    const allUnmatchedNextBets = [...unmatchedNextBetsA, ...unmatchedNextBetsB];
-    
-    // ✅ Refund unmatched next-game bets using same system as current game
-    // Group by user to batch refunds
-    const nextRefundsByUser: Map<string, { amount: number; betIds: string[] }> = new Map();
-    
-    for (const bet of allUnmatchedNextBets) {
+    let totalCurrentUnmatched = 0;
+    for (const bet of allUnmatchedCurrentBets) {
       const user = getUserById(bet.userId);
       if (user) {
-        console.log(`   ❌ Unmatched NEXT bet #${bet.id}: ${user.name} (${bet.amount} coins)`);
-        refundPendingBet(user.id, bet.id.toString());
-        
-        if (!nextRefundsByUser.has(user.id)) {
-          nextRefundsByUser.set(user.id, { amount: 0, betIds: [] });
-        }
-        const entry = nextRefundsByUser.get(user.id)!;
-        entry.amount += bet.amount;
-        entry.betIds.push(bet.id.toString());
+        console.log(`🔄 [UNMATCHED-CURRENT] Removing unmatched current game bet #${bet.id}: ${user.name} - ${bet.amount} coins freed`);
+        totalCurrentUnmatched += bet.amount;
       }
     }
     
-    // ✅ Apply refunds for unmatched next-game bets
-    for (const [userId, { amount, betIds }] of nextRefundsByUser.entries()) {
-      console.log(`   💰 Refunding ${betIds.length} unmatched NEXT bets for user ${userId}: ${amount} coins total`);
-      addCredits(userId, amount, false, `refund_unmatched_next_bets_${betIds.join('_')}`);
+    if (totalCurrentUnmatched > 0) {
+      console.log(`✅ [UNMATCHED-CURRENT] Total unmatched current bets removed: ${totalCurrentUnmatched} COINS`);
     }
     
-    const totalUnmatchedNext = Array.from(nextRefundsByUser.values()).reduce((sum, r) => sum + r.amount, 0);
-    console.log(`✅ [NEXT-GAME-PROCESSING] Unmatched NEXT-game bets refunded: ${allUnmatchedNextBets.length} bets, ${totalUnmatchedNext} coins`);
+    // 2. Refund unmatched NEXT game bets
+    const unmatchedNextBetsA = nextTeamAQueue.filter(bet => !bet.booked);
+    const unmatchedNextBetsB = nextTeamBQueue.filter(bet => !bet.booked);
+
+    if (unmatchedNextBetsA.length > 0 || unmatchedNextBetsB.length > 0) {
+      console.log(`🔄 [UNMATCHED-NEXT] Refunding ${unmatchedNextBetsA.length + unmatchedNextBetsB.length} unmatched next-game bets`);
+      // Use a sentinel game number so pending bets for the next game are cleared correctly
+      await processPendingBets(currentGameNumber + 1, winningTeam, unmatchedNextBetsA, unmatchedNextBetsB, []);
+    }
     
-    // ✅ Get MATCHED next-game bets
     const nextMatchedBetsA = nextTeamAQueue.filter(bet => bet.booked);
     const nextMatchedBetsB = nextTeamBQueue.filter(bet => bet.booked);
     const nextMatchedBooked = [...nextBookedBets];
     const nextTotal = nextTotalBookedAmount;
     
-    console.log(`🔥 [HARD-CLEAR] Matched NEXT-game bets to carry forward:`);
-    console.log(`   Team A matched: ${nextMatchedBetsA.length} bets`, nextMatchedBetsA);
-    console.log(`   Team B matched: ${nextMatchedBetsB.length} bets`, nextMatchedBetsB);
-    console.log(`   nextMatchedBooked: ${nextMatchedBooked.length}`, nextMatchedBooked);
-    console.log(`🔥 [HARD-CLEAR] Clearing ALL queues (current + next)`);
-    
-    // ✅ HARD CLEAR #1: Set all queues to empty arrays
-    console.log('📍 Before state update - teamAQueue:', teamAQueue.length, 'teamBQueue:', teamBQueue.length);
     updateGameState({
       teamAQueue: [],
       teamBQueue: [],
@@ -602,29 +567,14 @@ const OnePocketArena = () => {
       nextBookedBets: [],
       nextTotalBookedAmount: 0
     });
-    console.log('📍 After state update - queues should be empty');
     
-    // ✅ HARD CLEAR #2: Wait briefly then set only matched next-game bets
     setTimeout(() => {
-      console.log(`🔥 [HARD-CLEAR] Populating new game with ONLY matched bets`);
-      console.log(`   nextMatchedBetsA: ${nextMatchedBetsA.length}, nextMatchedBetsB: ${nextMatchedBetsB.length}`);
       updateGameState({
-        // Move matched next-game bets to current game
         teamAQueue: nextMatchedBetsA,
         teamBQueue: nextMatchedBetsB,
         bookedBets: nextMatchedBooked,
-        totalBookedAmount: nextTotal,
-        // ✅ CRITICAL: Clear next-game queues completely
-        nextTeamAQueue: [],
-        nextTeamBQueue: [],
-        nextBookedBets: [],
-        nextTotalBookedAmount: 0
+        totalBookedAmount: nextTotal
       });
-      
-      console.log(`✅ [NEW-GAME] Active bets:`);
-      console.log(`   Team A: ${nextMatchedBetsA.length} (booked), Team B: ${nextMatchedBetsB.length} (booked)`);
-      console.log(`   Total: ${nextTotal} coins`);
-      console.log(`📍 State update complete - next game queues cleared`);
       
       if (nextMatchedBetsA.length > 0 || nextMatchedBetsB.length > 0) {
         toast.success("Next Game Matched Bets Moved to Current Game", {
@@ -632,7 +582,7 @@ const OnePocketArena = () => {
           className: "custom-toast-success",
         });
       }
-    }, 150);
+    }, 100);
     
     updateGameState({ betCounter: 1 });
     
@@ -642,11 +592,10 @@ const OnePocketArena = () => {
     });
     
     // NOTE: Game history is already emitted from addBetHistoryRecord(), don't duplicate here
-    // ✅ HARD CLEAR: Emit forced clearing to ALL clients
-    console.log('🔥 [HARD-CLEAR] Emitting HARD CLEAR to all clients');
+    // Only emit the bet state clearing so other clients clear their queues
+    console.log('📤 [processBetsForGameWin] Emitting cleared bet queues to all clients');
     try {
       socketIOService.emitBetUpdate({
-        // FORCE CLEAR everything
         teamAQueue: [],
         teamBQueue: [],
         bookedBets: [],
@@ -654,56 +603,14 @@ const OnePocketArena = () => {
         nextGameBets: [],
         nextTeamAQueue: [],
         nextTeamBQueue: [],
-        nextBookedBets: [],
         nextTotalBookedAmount: 0
       });
     } catch (err) {
-      console.error('❌ Error emitting hard clear:', err);
+      console.error('❌ Error emitting bet update:', err);
     }
-    
-    // ✅ Brief pause before emitting matched next-game bets
-    setTimeout(() => {
-      console.log('📤 [processBetsForGameWin] Emitting matched next-game bets to all clients');
-      try {
-        socketIOService.emitBetUpdate({
-          teamAQueue: [],
-          teamBQueue: [],
-          bookedBets: [],
-          totalBookedAmount: 0,
-          nextGameBets: [],
-          nextTeamAQueue: nextMatchedBetsA,
-          nextTeamBQueue: nextMatchedBetsB,
-          nextBookedBets: nextMatchedBooked,
-          nextTotalBookedAmount: nextTotal
-        });
-        console.log('✅ Socket emit complete - matched bets sent to all clients');
-      } catch (err) {
-        console.error('❌ Error emitting matched bets:', err);
-      }
-    }, 100);
-    
-    // ✅ PRODUCTION FIX: Emit full game state update to ensure all clients sync
-    setTimeout(() => {
-      console.log('📤 [PRODUCTION-SYNC] Emitting full bet state to all clients');
-      try {
-        socketIOService.emitBetUpdate({
-          teamAQueue: nextMatchedBetsA,
-          teamBQueue: nextMatchedBetsB,
-          bookedBets: nextMatchedBooked,
-          totalBookedAmount: nextTotal,
-          nextTeamAQueue: [],
-          nextTeamBQueue: [],
-          nextBookedBets: [],
-          nextTotalBookedAmount: 0
-        });
-        console.log('✅ Production sync complete');
-      } catch (err) {
-        console.error('❌ Error in production sync:', err);
-      }
-    }, 200);
 
     // 📊 END COIN AUDIT - Take post-game snapshot and compare
-    const postGameUsers = users;
+    const postGameUsers = Object.values(gameState.users || {});
     let totalWinnerGain = 0;
     let totalLoserLoss = 0;
 
@@ -726,30 +633,16 @@ const OnePocketArena = () => {
       gameState.arenaId || 'unknown',
       postGameUsers,
       {
-        matched: bookedBets.length,
-        unmatchedRefunded: (teamAQueue.filter(b => !bookedBets.some(bb => bb.idA === b.id || bb.idB === b.id)).length +
-                           teamBQueue.filter(b => !bookedBets.some(bb => bb.idA === b.id || bb.idB === b.id)).length +
-                           nextTeamAQueue.filter(b => !nextBookedBets.some(bb => bb.idA === b.id || bb.idB === b.id)).length +
-                           nextTeamBQueue.filter(b => !nextBookedBets.some(bb => bb.idA === b.id || bb.idB === b.id)).length),
+        matched: bookedBets.filter(b => b.booked).length,
+        unmatchedRefunded: (teamAQueue.filter(b => !b.booked).length + 
+                           teamBQueue.filter(b => !b.booked).length +
+                           nextTeamAQueue.filter(b => !b.booked).length +
+                           nextTeamBQueue.filter(b => !b.booked).length),
         totalAmount: gameTotalAmount,
       },
       totalWinnerGain,
       totalLoserLoss
     );
-
-    // ✅ FAILSAFE: Verify coin balance before continuing
-    try {
-      coinAuditService.verifyGameAudit(gameId);
-    } catch (error) {
-      console.error('🚨 [FAILSAFE] Game audit failed:', error);
-      toast.error("🚨 Critical Coin Mismatch Detected", {
-        description: "Coin conservation violated! Please contact admin. Game may need rollback.",
-        duration: 5000,
-        className: "custom-toast-error",
-      });
-      // Optionally prevent game continuation or trigger admin alert
-      return;
-    }
 
     // Log audit summary
     const summary = coinAuditService.getAuditSummary(gameState.arenaId || 'unknown');
@@ -757,26 +650,6 @@ const OnePocketArena = () => {
     console.log(`   ✅ Balanced: ${summary.balancedGames}`);
     console.log(`   ❌ Unbalanced: ${summary.unbalancedGames}`);
     console.log(`   ⚠️  Coins created: ${summary.totalCoinsCreated}`);
-    
-    if (summary.issues.length > 0) {
-      console.error('🚨 [AUDIT-ISSUES] Detected problems:');
-      summary.issues.forEach(issue => console.error(`   ${issue}`));
-    }
-    
-    // Show success toast if all audits are balanced
-    if (summary.unbalancedGames === 0 && summary.totalGames > 0) {
-      toast.success("✅ All Coin Audits Passed", {
-        description: `${summary.totalGames} games processed with perfect coin conservation`,
-        className: "custom-toast-success",
-      });
-    } else if (summary.unbalancedGames > 0) {
-      // Show WARNING toast about unbalanced games
-      toast.error("⚠️ Audit Warning", {
-        description: `${summary.unbalancedGames} unbalanced games detected. ${summary.totalCoinsCreated} coins created. Check logs!`,
-        duration: 7000,
-        className: "custom-toast-error",
-      });
-    }
   };
 
   const deleteUnmatchedBets = async () => {
@@ -842,20 +715,6 @@ const OnePocketArena = () => {
   
   const handleConfirmBet = async () => {
     if (!confirmation.teamSide || confirmation.amount <= 0) return;
-    
-    // ✅ Prevent rapid bet placement (3 second cooldown to ensure all bets recorded)
-    const now = Date.now();
-    if (now - lastBetPlacementTimeRef.current < BET_PLACEMENT_COOLDOWN_MS) {
-      const remainingMs = BET_PLACEMENT_COOLDOWN_MS - (now - lastBetPlacementTimeRef.current);
-      const remainingSeconds = (remainingMs / 1000).toFixed(1);
-      toast.error("Bet Cooldown Active", {
-        description: `Wait ${remainingSeconds}s before placing another bet (3-second buffer prevents data loss)`,
-        duration: 2000,
-        className: "custom-toast-error",
-      });
-      return;
-    }
-    lastBetPlacementTimeRef.current = now;
     
     if (!currentUser) {
       toast.error("No User Selected", {
@@ -932,20 +791,6 @@ const OnePocketArena = () => {
   };
 
   const showBetConfirmation = async (team: 'A' | 'B', amount: number, isNextGame: boolean = false) => {
-    // ✅ Prevent rapid bet placement (3 second cooldown to ensure all bets recorded)
-    const now = Date.now();
-    if (now - lastBetPlacementTimeRef.current < BET_PLACEMENT_COOLDOWN_MS) {
-      const remainingMs = BET_PLACEMENT_COOLDOWN_MS - (now - lastBetPlacementTimeRef.current);
-      const remainingSeconds = (remainingMs / 1000).toFixed(1);
-      toast.error("Bet Cooldown Active", {
-        description: `Wait ${remainingSeconds}s before placing another bet (3-second buffer prevents data loss)`,
-        duration: 2000,
-        className: "custom-toast-error",
-      });
-      return;
-    }
-    lastBetPlacementTimeRef.current = now;
-
     if (!currentUser) {
       toast.error("No User Selected", {
         description: "Please select or create a user first",
@@ -1259,20 +1104,6 @@ const OnePocketArena = () => {
   };
 
   const deleteOpenBet = (betId: number, isNextGame: boolean = false) => {
-    // ✅ Prevent rapid bet deletion (1 second cooldown)
-    const now = Date.now();
-    if (now - lastBetDeletionTimeRef.current < BET_DELETION_COOLDOWN_MS) {
-      const remainingMs = BET_DELETION_COOLDOWN_MS - (now - lastBetDeletionTimeRef.current);
-      const remainingSeconds = (remainingMs / 1000).toFixed(1);
-      toast.error("Bet Cooldown Active", {
-        description: `Wait ${remainingSeconds}s before deleting another bet`,
-        duration: 2000,
-        className: "custom-toast-error",
-      });
-      return;
-    }
-    lastBetDeletionTimeRef.current = now;
-    
     if (!currentUser) {
       toast.error("Cannot Delete Bet", {
         description: "You must be logged in to delete bets",
@@ -1562,14 +1393,13 @@ const OnePocketArena = () => {
         (window as any).__MUTE_SOUNDS = false;
         console.log('🔊 [SOUND] Mute period expired - sounds enabled again');
       }, 5000);
-      clearTimeout(timer);
+      return () => clearTimeout(timer);
     };
   }, [location.pathname]);
 
 
   return (
     <div className="min-h-screen p-4 md:p-8 pt-32 relative" style={{ backgroundColor: '#000000', color: '#FFFFFF' }}>
-
       
       {/* Debug Status - Shows data sync info for mobile troubleshooting */}
       {/* <SocketIOStatus /> - Hidden for now */}
@@ -1666,8 +1496,6 @@ const OnePocketArena = () => {
           teamAPlayerImageUrl="/lovable-uploads/alex.png"
           teamBPlayerImageUrl="/lovable-uploads/tony.jpg"
           showBallCount={true}
-          winDisplay={winDisplay}
-          loseDisplay={loseDisplay}
         />
 
         {/* Game History Window */}

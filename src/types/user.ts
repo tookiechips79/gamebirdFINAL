@@ -59,6 +59,7 @@ export interface GameBet {
   amount: number;
   won: boolean;
   booked: boolean;
+  startingBalance?: number;
 }
 
 export interface UserBetReceipt {

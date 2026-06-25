@@ -16,10 +16,9 @@ export interface BetSyncData {
   nextGameBets?: any[];
   nextTeamAQueue?: any[];
   nextTeamBQueue?: any[];
-  nextBookedBets?: any[]; // Added for next game booked bets
-  nextTotalBookedAmount?: number; // Added for next game total booked amount
   totalBookedAmount?: number;
   nextTotalBookedAmount?: number;
+  arenaId?: string;
 }
 
 export interface GameStateSyncData {
@@ -76,9 +75,13 @@ class SocketIOService {
     this.lastIdentifiedArena = this.getArenaIdPrivate();
     log(`📍 Initialized lastIdentifiedArena to: ${this.lastIdentifiedArena}`);
     
-    // Ensure Socket.IO client connects in all environments
-    // The serverUrl logic handles targeting the correct backend based on NODE_ENV
-
+    // Skip Socket.IO connection in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log('⏭️ [SOCKET.IO] Skipping connection in development mode');
+      this.isConnected = false;
+      return;
+    }
+    
     this.initializeSocket();
   }
 
@@ -139,8 +142,8 @@ class SocketIOService {
         serverUrl = `http://${window.location.hostname}:3001`;
       } else {
         // Production (Render, AWS, etc.): 
-        // Frontend and backend run from same Express server
-        // Connect to same domain (no port needed - uses current port)
+        // Both frontend and backend run on same server
+        // Connect to same domain - Socket.IO auto-routes to backend
         serverUrl = `${protocol}//${window.location.hostname}`;
       }
       
@@ -862,34 +865,11 @@ class SocketIOService {
     }
   }
 
-  // ✅ NEW: Emit win flash event
-  public emitWinFlashEvent(data: { userId: string; amount: number; gameNumber: number }) {
-    this.checkAndReidentifyArena();
-    if (this.isSocketConnected()) {
-      const arenaId = this.getArenaId();
-      log(`✨ Emitting win flash event for user ${data.userId} in arena '${arenaId}': +${data.amount}`);
-      this.socket?.emit('win-flash-event', { ...data, arenaId });
-    } else {
-      warn('⚠️ Socket not connected, cannot emit win flash event');
-    }
-  }
-
   public onAdminStateUpdate(callback: (data: { adminState: any; arenaId?: string; timestamp: number }) => void) {
     if (this.socket) {
       this.socket.off('admin-state-update');
       this.socket.on('admin-state-update', (data) => {
         log(`⚙️ Received admin state update for arena '${data.arenaId}'`);
-        callback(data);
-      });
-    }
-  }
-
-  // ✅ NEW: Listen for win flash event
-  public onWinFlashEvent(callback: (data: { userId: string; amount: number; gameNumber: number; arenaId?: string }) => void) {
-    if (this.socket) {
-      this.socket.off('win-flash-event');
-      this.socket.on('win-flash-event', (data) => {
-        log(`✨ Received win flash event for user ${data.userId} in arena '${data.arenaId}': +${data.amount}`);
         callback(data);
       });
     }
@@ -961,13 +941,6 @@ class SocketIOService {
     if (this.socket) {
       this.socket.off('admin-state-update');
       log(`🧹 [CLEANUP] Removed admin-state-update listener`);
-    }
-  }
-
-  public offWinFlashEvent() {
-    if (this.socket) {
-      this.socket.off('win-flash-event');
-      log(`🧹 [CLEANUP] Removed win-flash-event listener`);
     }
   }
 

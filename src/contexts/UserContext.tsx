@@ -3,7 +3,6 @@ import { User, BetHistoryRecord, UserBetReceipt, CreditTransaction, PendingBet, 
 import { toast } from "sonner";
 import { socketIOService } from "@/services/socketIOService";
 import { useRef } from "react";
-import { coinAuditService as coinAuditServiceImport } from "@/services/coinAudit";
 
 interface UserContextType {
   users: User[];
@@ -46,13 +45,11 @@ interface UserContextType {
   }) => void;
   getPendingBetAmount: (userId: string) => number;
   getAvailableCredits: (userId: string) => number;
-  processPendingBets: (gameNumber: number, winningTeam: 'A' | 'B', teamABets: any[], teamBBets: any[], onWin?: (winningAmount: number, winningTeamSide: 'A' | 'B') => void, onLose?: (losingAmount: number, losingTeamSide: 'A' | 'B') => void) => void;
+  processPendingBets: (gameNumber: number, winningTeam: 'A' | 'B', teamABets?: any[], teamBBets?: any[], bookedBets?: any[]) => void;
   refundPendingBet: (userId: string, betId: string) => void;
   updatePendingBetMatched: (userId: string, betId: string, matchedAmount: number) => void;
   // ✅ RECOVERY: Restore multiple users at once
   restoreUsers: (usersToRestore: User[]) => void;
-  // ✅ ADMIN: Force clear all pending bets for all users
-  clearAllPendingBets: () => void;
   // ✅ AUDIT: Coin and bet verification functions
   auditCoins: () => any;
   auditBets: (teamABets?: any[], teamBBets?: any[]) => any;
@@ -81,7 +78,6 @@ const createDefaultAdmin = (): User => ({
 });
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-
   // *** MOVE ALL useRef DECLARATIONS HERE - FIRST, BEFORE ANY useState ***
   // Flag to prevent emitting history updates during clear operations
   const isClearingRef = useRef(false);
@@ -164,10 +160,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
-  // 🎮 SERVER-ONLY: Game history ALWAYS comes from server database, never localStorage
-  // This ensures all browsers see the exact same data
-  // We start with empty array and populate via socket event from server
-  const [immutableBetHistory, setImmutableBetHistory] = useState<BetHistoryRecord[]>([]);
+  const [immutableBetHistory, setImmutableBetHistory] = useState<BetHistoryRecord[]>(() => {
+    try {
+      const stored = localStorage.getItem('gamebird_bet_history');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return [];
+  });
   
   // PRIVATE: setBetHistory is now completely internal and cannot be called externally
   // This ensures bet history can only be modified through addBetHistoryRecord
@@ -351,7 +350,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           teamBBalls: record.team_b_balls || record.teamBBalls || 0,
           breakingTeam: record.breaking_team || record.breakingTeam || 'A',
           bets: record.bets_data ? (typeof record.bets_data === 'string' ? JSON.parse(record.bets_data) : record.bets_data) : record.bets || {},
-          arenaId: record.aren-id || record.arenaId || 'default'
+          arenaId: record.arena_id || record.arenaId || 'default'
         }));
         
         // ✅ REPLACE entire history with server version (just like wallet replaces credits)
@@ -564,19 +563,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Server sends all bet receipts for this user via Socket.IO
       // Skip in development mode (no socket.io connection)
       if (process.env.NODE_ENV !== 'development') {
-      // Retry until socket is connected (handles page refresh and reconnection)
-      const requestWithRetry = () => {
-        if (socketIOService.isSocketConnected()) {
-          console.log(`📥 [BET-RECEIPTS] Requesting from server for user ${currentUser.id}`);
-          socketIOService.requestBetReceipts(currentUser.id);
-        } else {
-          // Socket not ready yet, retry in 200ms
-          console.log(`⏳ [BET-RECEIPTS] Socket not ready, retrying...`);
-          setTimeout(requestWithRetry, 200);
-        }
-      };
-      
-      requestWithRetry();
+        // Retry until socket is connected (handles page refresh and reconnection)
+        const requestWithRetry = () => {
+          if (socketIOService.isSocketConnected()) {
+            console.log(`📥 [BET-RECEIPTS] Requesting from server for user ${currentUser.id}`);
+            socketIOService.requestBetReceipts(currentUser.id);
+          } else {
+            // Socket not ready yet, retry in 200ms
+            console.log(`⏳ [BET-RECEIPTS] Socket not ready, retrying...`);
+            setTimeout(requestWithRetry, 200);
+          }
+        };
+        
+        requestWithRetry();
       }
     } else {
       localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
@@ -838,10 +837,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           const newAvailable = updatedUser.credits - pendingBets.reduce((sum, b) => sum + b.amount, 0);
           console.log(`✅ [PENDING-BET] Added pending bet #${betData.id} for ${u.name}. Pending: ${pendingBets.length}, Amount locked: ${betData.amount}, Available now: ${newAvailable}`);
-           console.log(`   [DEBUG-PENDING-BETS] User ${u.name} pendingBets after add:`, updatedUser.pendingBets);
           return updatedUser;
         }
-         console.log(`   [DEBUG-PENDING-BETS] User ${u.name} pendingBets unchanged by add:`, u.pendingBets); // Log if user is not the target user
         return u;
       });
       return updatedUsers;
@@ -852,9 +849,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getPendingBetAmount = (userId: string): number => {
     const user = users.find(u => u.id === userId);
     if (!user) return 0;
-    console.log(`   [DEBUG-PENDING-BETS] User ${user.name} pendingBets for getPendingBetAmount:`, user.pendingBets);
     const pending = (user.pendingBets || []).reduce((sum, bet) => sum + bet.amount, 0);
+    if (pending > 0) {
       console.log(`💰 [PENDING-CALC] ${user.name}: ${user.pendingBets?.length || 0} bets, total locked: ${pending}`);
+    }
     return pending;
   };
 
@@ -869,464 +867,62 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // ✅ SIMPLIFIED: Process game results - winners get their bet back + loser's bet, unmatched bets refunded
-  const processPendingBets = async (gameNumber: number, winningTeam: 'A' | 'B', teamABets: any[] = [], teamBBets: any[] = [], onWin?: (winningAmount: number, winningTeamSide: 'A' | 'B') => void, onLose?: (losingAmount: number, losingTeamSide: 'A' | 'B') => void) => {
+  const processPendingBets = async (gameNumber: number, winningTeam: 'A' | 'B', teamABets: any[] = [], teamBBets: any[] = [], bookedBets: any[] = []) => {
     try {
       console.log(`🎮 [GAME-WIN] Game #${gameNumber}: ${winningTeam} won! Processing bets...`);
-      console.log(`   [DEBUG-PROCESS-BETS] Initial teamABets:`, teamABets);
-      console.log(`   [DEBUG-PROCESS-BETS] Initial teamBBets:`, teamBBets);
-      
-      // Simple logic:
-      // - Losers: already paid (credits deducted)
-      // - Winners: get their bet amount + the matched loser's amount
-      // - Unmatched: refund the full amount
-      
-      const winningBets = winningTeam === 'A' ? teamABets : teamBBets;
-      const losingBets = winningTeam === 'A' ? teamBBets : teamABets;
-      console.log(`   [DEBUG-PROCESS-BETS] Identified losingBets:`, losingBets);
-      
-      // ✅ BULLETPROOF MATCHING: Explicitly track matched pairs
-      // Don't modify maps during calculation - store matches for later use
-      console.log(`
-🔄 [MATCH-CALCULATION] Matching winning and losing bets...`);
-      
-      // Create immutable copy of losing bets by amount for matching
-      const losingBetsByAmount = new Map<number, any[]>();
-      for (const bet of losingBets) {
-        if (!losingBetsByAmount.has(bet.amount)) {
-          losingBetsByAmount.set(bet.amount, []);
-        }
-        losingBetsByAmount.get(bet.amount)!.push(bet);
-      }
-      
-      // ✅ Store EXACT matches: winning bet + losing bet pairs
-      const matchedPairs: Array<{ winBet: any; loseBet: any }> = [];
-      const unmatchedWinBets: any[] = [];
-      
-      // Calculate matches WITHOUT modifying the map
-      const losingBetsUsedIndexes = new Map<number, Set<number>>();
-      
-      for (const winBet of winningBets) {
-        const losingBetsForAmount = losingBetsByAmount.get(winBet.amount) || [];
-        const usedIndexes = losingBetsUsedIndexes.get(winBet.amount) || new Set();
-        
-        // Find first unused losing bet of matching amount
-        let matchedLosingBet = null;
-        for (let i = losingBetsForAmount.length - 1; i >= 0; i--) {
-          if (!usedIndexes.has(i)) {
-            matchedLosingBet = losingBetsForAmount[i];
-            usedIndexes.add(i);
-            losingBetsUsedIndexes.set(winBet.amount, usedIndexes);
-            break;
-          }
-        }
-        
-        if (matchedLosingBet) {
-          matchedPairs.push({ winBet, loseBet: matchedLosingBet });
-          console.log(`✅ Match found: ${winBet.userName} (${winBet.amount}) ↔ ${matchedLosingBet.userName} (${matchedLosingBet.amount})`);
-          } else {
-          unmatchedWinBets.push(winBet);
-          console.log(`⚠️ No match: ${winBet.userName} (${winBet.amount})`);
-        }
-      }
-      
-      // ✅ Collect unmatched losing bets
-      const unmatchedLosingBets: any[] = [];
-      for (const [amount, bets] of losingBetsByAmount.entries()) {
-        const usedIndexes = losingBetsUsedIndexes.get(amount) || new Set();
-        for (let i = 0; i < bets.length; i++) {
-          if (!usedIndexes.has(i)) {
-            unmatchedLosingBets.push(bets[i]);
-            console.log(`⚠️ No match: ${bets[i].userName} (${bets[i].amount}) - losing bet`);
-          }
-        }
-      }
-      
-      // ✅ Build payouts from EXPLICIT matches (no ambiguity!)
+
       const payouts: { userId: string; amount: number }[] = [];
-      
-      // Add matched wins
-      for (const { winBet, loseBet } of matchedPairs) {
-        const payout = winBet.amount + loseBet.amount;
-        console.log(`   [DEBUG-PAYOUT-CALC] Matched pair: winBet.amount=${winBet.amount}, loseBet.amount=${loseBet.amount}, calculated payout=${payout}`);
-        payouts.push({
-          userId: winBet.userId,
-          amount: payout
-        });
+
+      // Use authoritative bookedBets for matched payouts
+      for (const booked of bookedBets) {
+        const winnerUserId = winningTeam === 'A' ? booked.userIdA : booked.userIdB;
+        const payout = booked.amount * 2;
+        payouts.push({ userId: winnerUserId, amount: payout });
+        console.log(`✅ Matched payout: ${winnerUserId} wins ${payout} (${booked.amount} + ${booked.amount})`);
       }
-      
-      // Add unmatched winning bets refunds
-      for (const unmatchedBet of unmatchedWinBets) {
-        payouts.push({
-          userId: unmatchedBet.userId,
-          amount: unmatchedBet.amount
-        });
-      }
-      
-      // Add unmatched losing bets refunds
-      for (const unmatchedBet of unmatchedLosingBets) {
-        payouts.push({
-          userId: unmatchedBet.userId,
-          amount: unmatchedBet.amount
-        });
-      }
-      
-      console.log(`
-📊 [MATCH-SUMMARY] Matched: ${matchedPairs.length}, Unmatched: ${unmatchedWinBets.length + unmatchedLosingBets.length}`);
-      
-      // ✅ DOUBLE-CHECK SYSTEM: Verify winner payouts using EXPLICIT matches
-      // Use the matchedPairs we already calculated - no need to rebuild!
-      console.log(`
-🔍 [DOUBLE-CHECK] Verifying winner payouts from explicit matched pairs...`);
-      console.log(`
-📋 [PAYOUT-BREAKDOWN] Detailed calculation for each winner:`);
-      
-      const winnerPayoutsCalculated = new Map<string, { 
-        matchedAmount: number; 
-        betsCount: number;
-        originalBetReturned: number;
-        winningsFromLoser: number;
-      }>();
-      
-      // ✅ SIMPLIFIED & BULLETPROOF: Just double the bet!
-      // Instead of: original_bet + loser_bet (complex, error-prone)
-      // Just: 2x the bet amount (simple, impossible to miscalculate)
-      // Same result, zero complexity!
-      for (const { winBet, loseBet } of matchedPairs) {
-        const doubledBetAmount = winBet.amount * 2; // Winner gets 2x their bet
-        console.log(`   [DEBUG-PAYOUT-MATCH] winBet.amount: ${winBet.amount}, doubledBetAmount: ${doubledBetAmount}`);
-        const expectedPayout = doubledBetAmount;
-        
-        if (winnerPayoutsCalculated.has(winBet.userId)) {
-          const existing = winnerPayoutsCalculated.get(winBet.userId)!;
-          winnerPayoutsCalculated.set(winBet.userId, {
-            matchedAmount: existing.matchedAmount + expectedPayout,
-            betsCount: existing.betsCount + 1,
-            originalBetReturned: winBet.amount, // Still track for audit
-            winningsFromLoser: winBet.amount // Winnings is also 1x bet amount
-          });
-        } else {
-          winnerPayoutsCalculated.set(winBet.userId, { 
-            matchedAmount: expectedPayout, 
-            betsCount: 1,
-            originalBetReturned: winBet.amount, // Still track for audit
-            winningsFromLoser: winBet.amount // Winnings is also 1x bet amount
-          });
-        }
-        
-        // ✅ SIMPLE BREAKDOWN: Just 2x the bet!
-        console.log(`   ${winBet.userName} (Bet ID ${winBet.id}):`);
-        console.log(`      Bet amount: ${winBet.amount} coins`);
-        console.log(`      Payout (2x): ${doubledBetAmount} coins`);
-        console.log(`      Profit: +${doubledBetAmount - winBet.amount} coins ✅`);
-      }
-      
-      // Step 3: Compare calculated payouts with what we're actually paying
-      // ✅ SIMPLE & BULLETPROOF: Just 2x the bet, no complex calculation!
-      console.log(`
-🔐 [PAYOUT-VERIFICATION] Verifying payouts (2x bet amount):`);
-      
-      const winnerPayoutsActual = new Map<string, number>();
-      
-      // ✅ Super simple: just double each matched bet
-      // Zero possibility of miscalculation!
-      for (const { winBet } of matchedPairs) {
-        const doubledPayout = winBet.amount * 2;
-        const current = winnerPayoutsActual.get(winBet.userId) || 0;
-        winnerPayoutsActual.set(winBet.userId, current + doubledPayout);
-      }
-      
-      // Verify each winner is getting correct amount
-      console.log(`
-✅ [WINNER-VERIFICATION] Confirming all winners get paid correctly:`);
-      let payoutMismatchFound = false;
-      for (const [winnerUserId, calculated] of winnerPayoutsCalculated.entries()) {
-        const actual = winnerPayoutsActual.get(winnerUserId) || 0;
-        const user = users.find(u => u.id === winnerUserId);
-        
-        if (actual === calculated.matchedAmount) {
-          console.log(`   ✅ ${user?.name}: Correct payout ${actual} coins`);
-          console.log(`      - Bet: ${calculated.originalBetReturned} coins`);
-          console.log(`      - Winnings: ${calculated.winningsFromLoser} coins`);
-          console.log(`      - Total (2x bet): ${calculated.matchedAmount} coins (${calculated.betsCount} matched bets)`);
-          console.log(`      [DEBUG-PAYOUT-VERIFY] user: ${user?.name}, calculated.matchedAmount: ${calculated.matchedAmount}, actual: ${actual}, originalBetReturned: ${calculated.originalBetReturned}, winningsFromLoser: ${calculated.winningsFromLoser}`);
-        } else {
-          console.error(`   ❌ ${user?.name}: MISMATCH! Should get ${calculated.matchedAmount}, paying ${actual}`);
-          console.error(`      - Expected bet return: ${calculated.originalBetReturned}`);
-          console.error(`      - Expected winnings: ${calculated.winningsFromLoser}`);
-          console.error(`      - Total expected (2x bet): ${calculated.matchedAmount}`);
-          payoutMismatchFound = true;
-          
-          // ✅ FIX: Correct the payout to match calculation
-          console.log(`   🔧 CORRECTING payout to ${calculated.matchedAmount}`);
-          winnerPayoutsActual.set(winnerUserId, calculated.matchedAmount);
+
+      // Refund every unmatched bet using the booked flag — handles users with multiple bets
+      const allBets = [...teamABets, ...teamBBets];
+      for (const bet of allBets) {
+        if (!bet.booked) {
+          payouts.push({ userId: bet.userId, amount: bet.amount });
+          console.log(`💰 Refunding unmatched bet for ${bet.userName}: ${bet.amount} coins`);
         }
       }
       
-      if (payoutMismatchFound) {
-        console.warn(`🚨 [PAYOUT-CORRECTION] Fixed mismatched payouts!`);
-      }
-      
-      // ✅ VERIFIED PAYOUT SYSTEM: Calculate, verify, apply atomically
-      // Ensures zero coin loss with full verification
-      console.log(`
-💎 [VERIFIED-PAYOUTS] Computing final balances with verification...`);
-      
-      // Step 1: Take snapshot of current state
-      const preGameSnapshot = users.map(u => ({
-        id: u.id,
-        name: u.name,
-        // Add back pending bet amount to get true "pre-game" total
-        balance: u.credits + getPendingBetAmount(u.id)
-      }));
-      let preGameTotal = preGameSnapshot.reduce((sum, u) => sum + u.balance, 0);
-      console.log(`
-📊 [PRE-PAYOUT] Total coins: ${preGameTotal}`);
-      
-      // Step 2: Calculate expected payouts and final balances with detailed logging
-      const balanceChanges = new Map<string, { oldBalance: number; payout: number; newBalance: number }>();
-      let totalPayoutsNeeded = 0;
-      
-      // ✅ FINAL PAYOUTS: Combine verified winner payouts and all refunds
-      const finalPayouts: Array<{ userId: string; amount: number }> = [];
-      
-      // Add all verified and corrected winner payouts
-      for (const [userId, amount] of winnerPayoutsActual.entries()) {
-        finalPayouts.push({
-          userId,
-          amount
-        });
-      }
+      // Collect all user IDs who had bets in this game
+      const bettorIds = new Set([
+        ...teamABets.map(b => b.userId),
+        ...teamBBets.map(b => b.userId),
+      ]);
 
-      // Add matched losing bets (with negative amount to represent loss)
-      for (const { loseBet } of matchedPairs) {
-        finalPayouts.push({
-          userId: loseBet.userId,
-          amount: 0 // Loser's bet was already deducted, so no further change needed here.
-        });
-        console.log(`   [DEBUG-LOSER-PAYOUT] Loser ${loseBet.userName} (${loseBet.userId}) - Bet Amount: ${loseBet.amount}, Final Payout Entry Amount: 0 (already deducted)`);
-      }
-      
-      // Add unmatched winning bet refunds
-      for (const unmatchedBet of unmatchedWinBets) {
-        finalPayouts.push({
-          userId: unmatchedBet.userId,
-          amount: unmatchedBet.amount
-        });
-        console.log(`   [DEBUG-UNMATCHED-WIN-REFUND] Unmatched winning bet refund for ${unmatchedBet.userName} (${unmatchedBet.userId}): ${unmatchedBet.amount}`);
-      }
-      
-      // Add unmatched losing bet refunds
-      for (const unmatchedBet of unmatchedLosingBets) {
-        finalPayouts.push({
-          userId: unmatchedBet.userId,
-          amount: unmatchedBet.amount
-        });
-        console.log(`   [DEBUG-UNMATCHED-LOSE-REFUND] Unmatched losing bet refund for ${unmatchedBet.userName} (${unmatchedBet.userId}): ${unmatchedBet.amount}`);
-      }
-      
-      console.log(`
-💰 [DEBUG-FINAL-PAYOUTS] Full finalPayouts array:`, finalPayouts);
-
-      for (const payout of finalPayouts) {
-        console.log(`   [DEBUG-FINAL-PAYOUTS-ITEM] Processing payout: userId=${payout.userId}, amount=${payout.amount}`);
-        const user = users.find(u => u.id === payout.userId);
-        if (user) {
-          const oldBalance = user.credits;
-          const newBalance = oldBalance + payout.amount;
-          
-          // Accumulate if user has multiple payouts
-          if (balanceChanges.has(payout.userId)) {
-            const existing = balanceChanges.get(payout.userId)!;
-            balanceChanges.set(payout.userId, {
-              oldBalance: existing.oldBalance,
-              payout: existing.payout + payout.amount,
-              newBalance: existing.newBalance + payout.amount
-            });
-            console.log(`   [DEBUG-BALANCE] Accumulating payout for ${user.name}: Old game payout: ${existing.payout}, New payout: ${existing.payout + payout.amount}`);
-          } else {
-            balanceChanges.set(payout.userId, { oldBalance, payout: payout.amount, newBalance });
-            console.log(`   [DEBUG-BALANCE] Initial payout for ${user.name}: ${payout.amount} coins. Old Balance: ${oldBalance}, New Balance: ${newBalance}`);
-          }
-          
-          totalPayoutsNeeded += payout.amount;
-        }
-      }
-      
-      // Step 3: Log all changes and verify conservation
-      console.log(`
-💰 [PAYOUT-DETAILS] Individual changes:`);
-      // Removed `let postGameTotal = preGameTotal;` as it was unused and potentially confusing
-      
-      balanceChanges.forEach((change, userId) => {
-        const user = users.find(u => u.id === userId);
-        console.log(`   [DEBUG-BALANCE-CHANGE] User: ${user?.name}, Old: ${change.oldBalance}, New: ${change.newBalance}, Payout: ${change.payout}`);
-        console.log(`   ${user?.name}: ${change.oldBalance} → ${change.newBalance} (${change.payout > 0 ? '+' : ''}${change.payout})`);
-      });
-      
-      // Step 4: Verify conservation law (coins in = coins out)
-      const netPayoutEffect = Array.from(balanceChanges.values()).reduce((sum, change) => sum + change.payout, 0);
-      console.log(`
-🔐 [CONSERVATION-CHECK]`);
-      console.log(`   Pre-payout total: ${preGameTotal} coins`);
-      console.log(`   Total payouts (wins + refunds): ${totalPayoutsNeeded} coins`);
-      console.log(`   Net effect on system coins: ${netPayoutEffect} coins`);
-      
-      // For a perfectly balanced game, the net effect on system coins should be 0
-      if (netPayoutEffect !== 0) {
-        console.error(`❌ [CONSERVATION-FAILED] Net coin change detected! Total system coins changed by: ${netPayoutEffect}`);
-        toast.error("🚨 Coin Conservation Failed", {
-          description: `Total system coins changed by: ${netPayoutEffect} coins. Please check logs.`, 
-          duration: 5000, 
-          className: "custom-toast-error"
-        });
-        } else {
-        console.log(`✅ [CONSERVATION-VERIFIED] Coins conserved! Net effect is 0.`);
-      }
-      
-      // Step 5: Apply all changes in single atomic update
-      let currentUserMatchedWinAmount = 0;
-      let currentUserMatchedLossAmount = 0;
-      let currentUserWinningTeamSide: 'A' | 'B' | null = null;
-      let currentUserLosingTeamSide: 'A' | 'B' | null = null;
-
+      // Apply payouts and clear pending bets for all users who had bets this game
       setUsers(prev => {
         const updated = prev.map(user => {
-          const change = balanceChanges.get(user.id);
-          if (change) {
-            console.log(`   [DEBUG-CHANGE-PAYOUT] User ${user.name} (${user.id}) - Raw change.payout: ${change.payout}`);
-            console.log(`   [DEBUG-SETUSERS] Updating user ${user.name} (${user.id}): Old credits: ${user.credits}, Payout: ${change.payout}, New credits: ${change.newBalance}`);
-            // Update current user immediately
-        if (currentUser?.id === user.id) {
-              setCurrentUser({ ...user, credits: change.newBalance });
-            }
+          const totalPayout = payouts
+            .filter(p => p.userId === user.id)
+            .reduce((sum, p) => sum + p.amount, 0);
 
-            // Aggregate win/loss for the current user from matched bets only
-            if (currentUser?.id === user.id) {
-              // Check if user's matched bet won or lost
-              const isWinner = matchedPairs.some(pair => pair.winBet.userId === user.id);
-              const isLoser = matchedPairs.some(pair => pair.loseBet.userId === user.id);
+          if (!bettorIds.has(user.id) && totalPayout === 0) return user;
 
-              if (isWinner) {
-                console.log(`   [DEBUG-CURRENT-USER-WIN] User ${user.name} (${user.id}) identified as winner. Raw change.payout: ${change.payout}. Current currentUserMatchedWinAmount before update: ${currentUserMatchedWinAmount}`);
-                currentUserMatchedWinAmount += change.payout; // Pass the full payout to onWin
-                currentUserWinningTeamSide = winningTeam;
-              } else if (isLoser) {
-                // Sum all losing bet amounts for the current user from matchedPairs
-                const totalUserLosingAmount = matchedPairs
-                  .filter(pair => pair.loseBet.userId === user.id)
-                  .reduce((sum, pair) => sum + pair.loseBet.amount, 0);
-                
-                if (totalUserLosingAmount > 0) {
-                  console.log(`   [DEBUG-CURRENT-USER-LOSE] User ${user.name} (${user.id}) identified as loser. Total Losing Amount: ${totalUserLosingAmount}. Current currentUserMatchedLossAmount before update: ${currentUserMatchedLossAmount}`);
-                  currentUserMatchedLossAmount += totalUserLosingAmount; // Accumulate all losing bet amounts for display
-                  currentUserLosingTeamSide = winningTeam === 'A' ? 'B' : 'A';
-                } else {
-                  console.warn(`⚠️ [DEBUG-CURRENT-USER-LOSE] Loser identified but no losing bets found in matchedPairs for user ${user.name} (${user.id})`);
-                }
-              }
-            }
-            
-            const updatedUser = { ...user, credits: change.newBalance };
+          const newBalance = user.credits + totalPayout;
+          // Clear only the bets from this game number so next-game pending bets remain
+          const remainingPending = (user.pendingBets || []).filter(
+            b => b.gameNumber !== gameNumber
+          );
 
-            // After processing, clear pending bets for this user related to this game
-            console.log(`   [DEBUG-PENDING-BETS] User ${user.name} pendingBets BEFORE clearing for game #${gameNumber}:`, updatedUser.pendingBets);
-            // Clear pending bets for this user related to this game, AND any bets that do not have a gameNumber (stale/unprocessed)
-            const clearedPendingBets = (updatedUser.pendingBets || []).filter(pb => pb.gameNumber !== gameNumber && pb.gameNumber !== undefined);
-            updatedUser.pendingBets = clearedPendingBets;
-            console.log(`   [DEBUG-PENDING-BETS] User ${user.name} pendingBets AFTER clearing for game #${gameNumber}:`, updatedUser.pendingBets);
-        
-        return updatedUser;
-          } else {
-            console.log(`   [DEBUG-PENDING-BETS] User ${user.name} had no balance change, pendingBets:`, user.pendingBets); // Log if user had no balance change
+          if (totalPayout > 0) {
+            console.log(`💰 ${user.name}: +${totalPayout} coins (${user.credits} → ${newBalance})`);
           }
-        return user;
-      });
 
-      // Call onWin or onLose once after all updates for the current user
-      if (onWin && currentUserMatchedWinAmount > 0) {
-        console.log(`   [DEBUG-ONWIN-CALL] Calling onWin with amount: ${currentUserMatchedWinAmount}, teamSide: ${currentUserWinningTeamSide}`);
-        onWin(currentUserMatchedWinAmount, currentUserWinningTeamSide!); // Ensure team side is passed
-      } else if (onLose && currentUserMatchedLossAmount > 0) {
-        onLose(currentUserMatchedLossAmount, currentUserLosingTeamSide!); // Ensure team side is passed
-      }
-        
-      // ✅ Save to localStorage
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updated));
-        
-        // Final verification
-        const postGameSnapshotTotal = updated.reduce((sum, u) => sum + u.credits, 0);
-        console.log(`
-✅ [FINAL-VERIFICATION] Post-game total: ${postGameSnapshotTotal} coins`);
-        
-        if (postGameSnapshotTotal !== preGameTotal) {
-          console.error(`🚨 [CRITICAL] Coin loss detected! ${preGameTotal} → ${postGameSnapshotTotal}`);
-          const systemUserName = "SYSTEM"; // A placeholder for system-level transactions
-          if (coinAuditServiceImport && typeof coinAuditServiceImport.logCreditTransaction === 'function') {
-            coinAuditServiceImport.logCreditTransaction('SYSTEM', systemUserName, 'coin_loss_detected', postGameSnapshotTotal - preGameTotal, postGameSnapshotTotal, gameNumber, undefined, `Coin loss detected: ${preGameTotal} -> ${postGameSnapshotTotal}`);
-          } else {
-            console.error('❌ [CRITICAL] coinAuditServiceImport.logCreditTransaction is not available!');
+          const updatedUser = { ...user, credits: newBalance, pendingBets: remainingPending };
+          if (currentUser?.id === user.id) {
+            setCurrentUser(updatedUser);
           }
-        }
-        
+          return updatedUser;
+        });
         return updated;
       });
-      
-      // Step 6: Log all transactions for audit trail
-      console.log(`
-📋 [AUDIT-LOG] Transaction summary:`);
-      balanceChanges.forEach((change, userId) => {
-        // Find the user to get their name for the audit log
-        const user = users.find(u => u.id === userId);
-          if (coinAuditServiceImport && typeof coinAuditServiceImport.logCreditTransaction === 'function') {
-          if (user) {
-            coinAuditServiceImport.logCreditTransaction(
-              userId,
-              user.name,
-              change.payout > 0 ? 'win_payout' : 'bet_refund', // Determine type based on payout amount
-              change.payout,
-              change.newBalance,
-              gameNumber
-            );
-        } else {
-            console.warn(`⚠️ [AUDIT-LOG] User not found for audit log: ${userId}`);
-            coinAuditServiceImport.logCreditTransaction(
-              userId,
-              'Unknown User',
-              change.payout > 0 ? 'win_payout' : 'bet_refund',
-              change.payout,
-              change.newBalance,
-              gameNumber
-            );
-          }
-        } else {
-            console.error('❌ [CRITICAL] coinAuditServiceImport.logCreditTransaction is not available for audit logging!');
-        }
-        console.log(`   ${userId}: +${change.payout} coins`);
-      });
-      
-      // ✅ NOW: Call backend API to persist wins to database
-      console.log(`🎮 [GAME-WIN] Sending ${payouts.length} payouts to backend...`);
-      // ✅ Fire backend calls without awaiting to avoid UI lag
-      for (const payout of payouts) {
-        fetch(`/api/credits/${payout.userId}/win`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: payout.amount,
-            gameNumber: gameNumber,
-            winningTeam: winningTeam
-          })
-        }).then(response => {
-          if (!response.ok) {
-            console.warn(`⚠️ [GAME-WIN] Backend win endpoint returned ${response.status} for user ${payout.userId}`);
-          } else {
-            console.log(`✅ [GAME-WIN] Backend updated win for user ${payout.userId}: +${payout.amount}`);
-          }
-        }).catch(error => {
-          console.warn(`⚠️ [GAME-WIN] Could not reach backend for user ${payout.userId}:`, error);
-          // Continue anyway - localStorage has the data
-        });
-      }
       
       console.log(`🎮 [GAME-WIN] Processed ${payouts.length} bet payouts`);
     } catch (error) {
@@ -1350,12 +946,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     }
 
-    console.log(`
-💰 [COIN-AUDIT] ===================`);
+    console.log(`\n💰 [COIN-AUDIT] ===================`);
     console.log(`💰 [COIN-AUDIT] Total User Credits: ${totalUserCredits}`);
     console.log(`💰 [COIN-AUDIT] Audit Details:`, audit);
-    console.log(`💰 [COIN-AUDIT] ===================
-`);
+    console.log(`💰 [COIN-AUDIT] ===================\n`);
 
     return {
       totalUserCredits,
@@ -1377,8 +971,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unmatchedTeamB = teamBBets.filter(b => !b.booked).reduce((sum, b) => sum + b.amount, 0);
     const totalUnmatched = unmatchedTeamA + unmatchedTeamB;
 
-    console.log(`
-🎲 [BET-AUDIT] ===================`);
+    console.log(`\n🎲 [BET-AUDIT] ===================`);
     console.log(`🎲 [BET-AUDIT] Team A Queue: ${teamABets.length} bets, ${totalTeamAAmount} coins`);
     console.log(`🎲 [BET-AUDIT]   - Matched: ${teamABets.filter(b => b.booked).length} bets, ${matchedTeamA} coins`);
     console.log(`🎲 [BET-AUDIT]   - Unmatched: ${teamABets.filter(b => !b.booked).length} bets, ${unmatchedTeamA} coins`);
@@ -1386,8 +979,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log(`🎲 [BET-AUDIT]   - Matched: ${teamBBets.filter(b => b.booked).length} bets, ${matchedTeamB} coins`);
     console.log(`🎲 [BET-AUDIT]   - Unmatched: ${teamBBets.filter(b => !b.booked).length} bets, ${unmatchedTeamB} coins`);
     console.log(`🎲 [BET-AUDIT] TOTAL: ${totalInQueues} coins (${totalMatched} matched, ${totalUnmatched} unmatched)`);
-    console.log(`🎲 [BET-AUDIT] ===================
-`);
+    console.log(`🎲 [BET-AUDIT] ===================\n`);
 
     return {
       teamA: {
@@ -1413,13 +1005,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const coinAudit = auditCoins();
     const betAudit = auditBets(teamABets, teamBBets);
 
-    console.log(`
-✅ [SYSTEM-HEALTH] ===================`);
+    console.log(`\n✅ [SYSTEM-HEALTH] ===================`);
     console.log(`✅ Total Credits in System: ${coinAudit.totalUserCredits}`);
     console.log(`✅ Total Coins in Active Bets: ${betAudit.grandTotal}`);
     console.log(`✅ Total System Coins: ${coinAudit.totalUserCredits + betAudit.grandTotal}`);
-    console.log(`✅ [SYSTEM-HEALTH] ===================
-`);
+    console.log(`✅ [SYSTEM-HEALTH] ===================\n`);
 
     return {
       coinAudit,
@@ -1487,10 +1077,8 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentUser(updatedUser);
           }
           console.log(`✅ [PENDING-BET] Refunded bet #${betId} for ${u.name}. Remaining pending: ${pendingBets.length}`);
-           console.log(`   [DEBUG-PENDING-BETS] User ${u.name} pendingBets after refund:`, updatedUser.pendingBets);
           return updatedUser;
         }
-         console.log(`   [DEBUG-PENDING-BETS] User ${u.name} pendingBets unchanged by refund:`, u.pendingBets); // Log if user is not the target user
         return u;
       });
       return updatedUsers;
@@ -1506,45 +1094,39 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log(`💰 [CREDITS-ADD] Starting: userId=${userId}, amount=${amount}, reason=${reason}`);
       
-      // ✅ Handle locally for ALL environments (dev, production, Render)
-      // This ensures consistent behavior everywhere
-      // NOTE: Use setUsers callback to read the CURRENT state, not the closure value
-      let newBalance = 0;
-      
-      setUsers(prev => {
-        const user = prev.find(u => u.id === userId);
+      // In development mode, handle locally without server
+      if (process.env.NODE_ENV === 'development') {
+        const user = users.find(u => u.id === userId);
         if (!user) {
           console.warn('⚠️ [CREDITS-ADD] User not found:', userId);
-          return prev;
+          return false;
         }
         
-        newBalance = user.credits + amount;
-        console.log(`✅ [CREDITS-ADD] Adding credits locally, newBalance=${newBalance}`);
+        const newBalance = user.credits + amount;
+        console.log(`✅ [CREDITS-ADD] Dev mode: adding locally, newBalance=${newBalance}`);
         
-        // ✅ Log transaction for audit
-          if (coinAuditServiceImport && typeof coinAuditServiceImport.logCreditTransaction === 'function') {
-          coinAuditServiceImport.logCreditTransaction(user.id, user.name, (reason === 'bet_refund' ? 'bet_refund' : 'credits_added'), amount, newBalance);
-        } else {
-          console.error('❌ [CRITICAL] coinAuditServiceImport.logCreditTransaction is not available for addCredits!');
-        }
-        
-        const updatedUsers = prev.map(u => {
-          if (u.id === userId) {
-            const updatedUser = { ...u, credits: newBalance };
-            if (currentUser?.id === userId) {
-              setCurrentUserWithLogin(updatedUser);
+        // Update local state immediately
+        setUsers(prev => {
+          const updatedUsers = prev.map(u => {
+            if (u.id === userId) {
+              const updatedUser = { ...u, credits: newBalance };
+              if (currentUser?.id === userId) {
+                setCurrentUserWithLogin(updatedUser);
+              }
+              return updatedUser;
             }
-            return updatedUser;
-          }
-          return u;
+            return u;
+          });
+          localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
+          return updatedUsers;
         });
-        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
-        return updatedUsers;
-      });
+        
+        return true;
+      }
       
-      // ✅ Call backend API to persist addition to database (NON-BLOCKING)
-      // Don't await - fire and forget to avoid UI lag
-      fetch(`/api/credits/${userId}/add`, {
+      // 💰 Call server API instead of modifying local state
+      // Server is authoritative - it validates, processes, and records the transaction
+      const response = await fetch(`/api/credits/${userId}/add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1552,15 +1134,37 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           reason: isAdmin ? reason : 'system_operation',
           adminNotes: isAdmin ? `Admin action: ${reason}` : ''
         })
-      }).then(response => {
-        if (response.ok) {
-          console.log(`✅ [CREDITS-ADD] Backend added ${amount} for user ${userId}`);
-        } else {
-          console.warn(`⚠️ [CREDITS-ADD] Backend returned ${response.status}, but local addition succeeded`);
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error(`❌ [CREDITS-ADD] Server returned error: ${response.status}`, errorData);
+        throw new Error(`Server error: ${response.status} - ${errorData.error || 'Unknown'}`);
+      }
+      
+      const data = await response.json();
+      const newBalance = data.newBalance;
+      console.log(`✅ [CREDITS-ADD] Server returned newBalance=${newBalance}`);
+      
+      // Update local state with server-confirmed balance
+      setUsers(prev => {
+        const updatedUsers = prev.map(user => {
+          if (user.id === userId) {
+            const updatedUser = { ...user, credits: newBalance };
+            if (currentUser?.id === userId) {
+              setCurrentUser(updatedUser);
+            }
+            return updatedUser;
+          }
+          return user;
+        });
+        
+        // Emit wallet update for connected users coin counter
+        if (socketIOService.isSocketConnected()) {
+          socketIOService.emitUserWalletUpdate(updatedUsers);
         }
-      }).catch(error => {
-        console.warn(`⚠️ [CREDITS-ADD] Could not reach backend, but local addition succeeded:`, error);
-        // Continue anyway - localStorage has the data
+        
+        return updatedUsers;
       });
       
       const userName = users.find(u => u.id === userId)?.name || userId;
@@ -1621,62 +1225,94 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log(`💰 [CREDITS-BET] Starting: userId=${userId}, amount=${amount}, currentBalance=${user.credits}`);
       
-      // ✅ Handle locally for ALL environments (dev, production, Render)
-      // This ensures consistent behavior everywhere
-      if (user.credits < amount) {
-        console.warn(`⚠️ [CREDITS-BET] Insufficient credits: has ${user.credits}, needs ${amount}`);
-        toast.error("Insufficient Credits", {
-          description: `${user.name} needs ${amount} COINS (has ${user.credits})`,
-          className: "custom-toast-error"
+      // In development mode, handle locally without server
+      if (process.env.NODE_ENV === 'development') {
+        if (user.credits < amount) {
+          console.warn(`⚠️ [CREDITS-BET] Insufficient local credits: has ${user.credits}, needs ${amount}`);
+          toast.error("Insufficient Credits", {
+            description: `${user.name} needs ${amount} COINS (has ${user.credits})`,
+            className: "custom-toast-error"
+          });
+          return false;
+        }
+        
+        const newBalance = user.credits - amount;
+        console.log(`✅ [CREDITS-BET] Dev mode: deducting locally, newBalance=${newBalance}`);
+        
+        // Update local state immediately
+        setUsers(prev => {
+          const updatedUsers = prev.map(u => {
+            if (u.id === userId) {
+              const updatedUser = { ...u, credits: newBalance };
+              if (currentUser?.id === userId) {
+                setCurrentUserWithLogin(updatedUser);
+              }
+              return updatedUser;
+            }
+            return u;
+          });
+          localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
+          return updatedUsers;
         });
-        return false;
+        
+        return true;
       }
       
-      const newBalance = user.credits - amount;
-      console.log(`✅ [CREDITS-BET] Deducting locally, newBalance=${newBalance}`);
-      
-      // ✅ Log transaction for audit
-          if (coinAuditServiceImport && typeof coinAuditServiceImport.logCreditTransaction === 'function') {
-          coinAuditServiceImport.logCreditTransaction(userId, user.name, 'bet_deducted', -amount, newBalance);
-        } else {
-          console.error('❌ [CRITICAL] coinAuditServiceImport.logCreditTransaction is not available for deductCredits!');
-        }
-      
-      // Update local state immediately
-      setUsers(prev => {
-        const updatedUsers = prev.map(u => {
-          if (u.id === userId) {
-            const updatedUser = { ...u, credits: newBalance };
-            if (currentUser?.id === userId) {
-              setCurrentUserWithLogin(updatedUser);
-            }
-            return updatedUser;
-          }
-          return u;
-        });
-        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
-        return updatedUsers;
-      });
-      
-      // ✅ Call backend API to persist deduction to database (NON-BLOCKING)
-      // Don't await - fire and forget to avoid UI lag
-      fetch(`/api/credits/${userId}/bet`, {
+      // 💰 Call server API to validate and deduct credits
+      // Server checks balance before allowing deduction
+      const response = await fetch(`/api/credits/${userId}/bet`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount,
           betDetails: isAdminAction ? 'Admin deducted' : 'Bet placed'
         })
-      }).then(response => {
-        if (response.ok) {
-          console.log(`✅ [CREDITS-BET] Backend deducted ${amount} for user ${userId}`);
-        } else {
-          console.warn(`⚠️ [CREDITS-BET] Backend returned ${response.status}, but local deduction succeeded`);
-        }
-      }).catch(error => {
-        console.warn(`⚠️ [CREDITS-BET] Could not reach backend, but local deduction succeeded:`, error);
-        // Continue anyway - localStorage has the data
       });
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        console.warn(`⚠️ [CREDITS-BET] Server rejected: ${response.status}`, error);
+        toast.error("Insufficient Credits", {
+          description: error.error || `${user.name} doesn't have enough credits`,
+          className: "custom-toast-error"
+        });
+        return false;
+      }
+      
+      const data = await response.json();
+      const newBalance = data.newBalance;
+      console.log(`✅ [CREDITS-BET] Server returned newBalance=${newBalance}`);
+      
+      // Update local state with server-confirmed balance
+      setUsers(prev => {
+        const updatedUsers = prev.map(u => {
+          if (u.id === userId) {
+            const updatedUser = { ...u, credits: newBalance };
+            if (currentUser?.id === userId) {
+              setCurrentUser(updatedUser);
+            }
+            return updatedUser;
+          }
+          return u;
+        });
+        
+        // Emit wallet update for connected users coin counter
+        if (socketIOService.isSocketConnected()) {
+          socketIOService.emitUserWalletUpdate(updatedUsers);
+        }
+        
+        return updatedUsers;
+      });
+      
+      if (isAdminAction) {
+        addCreditTransaction({
+          userId,
+          userName: user.name,
+          type: 'admin_deduct',
+          amount,
+          details: 'Admin removed coins from account'
+        });
+      }
       
       return true;
     } catch (error) {
@@ -1733,13 +1369,16 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `bet-history-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       timestamp: Date.now()
     };
-    
+
     console.log('💰 [GAME-HISTORY-SYNC] Adding new game record, game#:', record.gameNumber);
-    
-    // 💰 UPDATE LOCAL STATE FIRST (immediate display like wallet credits)
+
     const MAX_GAMES = 50;
     const immediateHistory = [newRecord, ...immutableBetHistory].slice(0, MAX_GAMES);
     setImmutableBetHistory(immediateHistory);
+    try {
+      localStorage.setItem('gamebird_bet_history', JSON.stringify(immediateHistory));
+    } catch {}
+    console.log('✅ [GAME-HISTORY-SYNC] Local state updated:', immediateHistory.length, 'games');
     console.log('✅ [GAME-HISTORY-SYNC] Local state updated:', immediateHistory.length, 'games');
     
     // 💰 SEND TO SERVER (server will save to database and broadcast to all clients)
@@ -2099,7 +1738,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('⏭️ [CREDITS] Skipping server fetch in development mode');
         return;
       }
-
+      
       try {
         console.log(`📡 [CREDITS] Fetching server balance for user: ${currentUser.id}`);
         const controller = new AbortController();
@@ -2325,43 +1964,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  // ✅ ADMIN: Force clear all pending bets for all users
-  const clearAllPendingBets = () => {
-    console.log(`🧹 [ADMIN-ACTION] Clearing all pending bets for all users...`);
-    setUsers(prevUsers => {
-      const updatedUsers = prevUsers.map(user => {
-        if (user.pendingBets && user.pendingBets.length > 0) {
-          console.log(`   [ADMIN-ACTION] Cleared ${user.pendingBets.length} pending bets for ${user.name}`);
-          return { ...user, pendingBets: [] };
-        }
-        return user;
-      });
-      // Update currentUser if their pending bets were cleared
-      if (currentUser) {
-        const updatedCurrentUser = updatedUsers.find(u => u.id === currentUser.id);
-        if (updatedCurrentUser && updatedCurrentUser.pendingBets?.length === 0 && currentUser.pendingBets?.length > 0) {
-          setCurrentUser(updatedCurrentUser); // Force update if pending bets were cleared
-        }
-      }
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
-      return updatedUsers;
-    });
-
-    // ✅ NEW: Emit to backend to clear server-side pending bets
-      if (socketIOService.isSocketConnected()) {
-        console.log(`📤 [ADMIN-ACTION] Emitting 'clear-all-pending-bets-backend' to server`);
-        socketIOService.socket?.emit('clear-all-pending-bets-backend');
-      } else {
-        console.warn(`⚠️ [ADMIN-ACTION] Socket not connected, cannot emit clear-all-pending-bets-backend event.`);
-      }
-
-    toast.info("All Pending Bets Cleared", {
-      description: "Any coins locked in pending bets have been unlocked.",
-      className: "custom-toast-info"
-    });
-  };
-
-
   return (
     <UserContext.Provider
       value={{
@@ -2401,7 +2003,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refundPendingBet,
         updatePendingBetMatched,
         restoreUsers,
-        clearAllPendingBets, // Expose this new function
         // ✅ AUDIT functions
         auditCoins,
         auditBets,
