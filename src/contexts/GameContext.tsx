@@ -225,7 +225,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const startTimer = useCallback(() => updateGame({
     isTimerRunning: true,
-    timerStartedAt: Date.now() + clockOffsetRef.current, // server-normalized time
+    timerStartedAt: Date.now() + clockOffsetRef.current,
+    timerVersion: (gameRef.current.timerVersion ?? 0) + 1,
   }), [updateGame]);
 
   const pauseTimer = useCallback(() => {

@@ -14,6 +14,7 @@ let gameState = null;
 let usersState = null;
 let historyState = null;
 let lastStampedClientTs = null;
+let lastTimerVersion = null;
 
 io.on('connection', (socket) => {
   console.log(`[socket] client connected: ${socket.id} (${io.engine.clientsCount} total)`);
@@ -26,23 +27,25 @@ io.on('connection', (socket) => {
     let state = newState;
     let serverModified = false;
 
-    // Reset stamp tracker when timer is cleared (game reset/win)
+    // Reset when timer is cleared
     if (!newState.timerStartedAt) {
       lastStampedClientTs = null;
+      lastTimerVersion = null;
     }
 
-    // Only re-stamp if this is genuinely a new timer start:
-    // timerStartedAt changed by more than 2 seconds from the last client value we stamped
+    // Use timerVersion as definitive signal for a new timer start
     const isNewStart = newState.isTimerRunning &&
       newState.timerStartedAt &&
-      (!lastStampedClientTs || Math.abs(newState.timerStartedAt - lastStampedClientTs) > 2000);
+      newState.timerVersion != null &&
+      newState.timerVersion !== lastTimerVersion;
 
     if (isNewStart) {
       lastStampedClientTs = newState.timerStartedAt;
+      lastTimerVersion = newState.timerVersion;
       state = { ...newState, timerStartedAt: Date.now() };
       serverModified = true;
     } else if (newState.isTimerRunning && gameState && gameState.timerStartedAt) {
-      // Timer is running but not a new start — preserve the server-stamped timerStartedAt
+      // Not a new start — preserve the server-stamped timerStartedAt
       state = { ...newState, timerStartedAt: gameState.timerStartedAt };
     }
 

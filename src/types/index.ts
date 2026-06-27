@@ -119,8 +119,9 @@ export interface GameState {
   nextTotalBookedAmount: number;
   betCounter: number;
   gameDescription: string;
-  timerStartedAt: number | null;   // Date.now() when last started
-  timerElapsedMs: number;           // accumulated ms before current run
+  timerStartedAt: number | null;
+  timerElapsedMs: number;
   isTimerRunning: boolean;
+  timerVersion?: number;
   lastWinner: 'A' | 'B' | null;
 }
