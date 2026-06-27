@@ -1,9 +1,10 @@
 {
+  "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "buildCommand": "npm install --legacy-peer-deps && echo 'Cache bust: Oct 25 2025'"
+    "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "node server.js",
-    "restartPolicyMaxRetries": 5
+    "startCommand": "node socket-server.js",
+    "restartPolicyType": "ON_FAILURE"
   }
 }
