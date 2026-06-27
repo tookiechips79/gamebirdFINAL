@@ -147,7 +147,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const clockOffsetRef = useRef(0);
 
   useEffect(() => {
-    const serverUrl = `http://${window.location.hostname}:3001`;
+    const serverUrl = window.location.hostname === 'localhost'
+      ? `http://localhost:3001`
+      : 'https://gamebird-app-production.up.railway.app';
     const socket = io(serverUrl, { transports: ['websocket'] });
     socketRef.current = socket;
 
