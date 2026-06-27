@@ -31,11 +31,19 @@ io.on('connection', (socket) => {
       lastStampedClientTs = null;
     }
 
-    if (newState.isTimerRunning && newState.timerStartedAt &&
-        newState.timerStartedAt !== lastStampedClientTs) {
+    // Only re-stamp if this is genuinely a new timer start:
+    // timerStartedAt changed by more than 2 seconds from the last client value we stamped
+    const isNewStart = newState.isTimerRunning &&
+      newState.timerStartedAt &&
+      (!lastStampedClientTs || Math.abs(newState.timerStartedAt - lastStampedClientTs) > 2000);
+
+    if (isNewStart) {
       lastStampedClientTs = newState.timerStartedAt;
       state = { ...newState, timerStartedAt: Date.now() };
       serverModified = true;
+    } else if (newState.isTimerRunning && gameState && gameState.timerStartedAt) {
+      // Timer is running but not a new start — preserve the server-stamped timerStartedAt
+      state = { ...newState, timerStartedAt: gameState.timerStartedAt };
     }
 
     gameState = state;
