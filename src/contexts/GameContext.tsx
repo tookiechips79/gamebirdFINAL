@@ -178,12 +178,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
       clockOffsetRef.current = offset;
       setClockOffset(offset);
     });
-    socket.on('connect', syncClock);
-    if (socket.connected) syncClock();
+    socket.on('connect', () => {
+      syncClock();
+      socket.emit('request-game-state', { arenaId: 'default' });
+    });
+    if (socket.connected) { syncClock(); socket.emit('request-game-state', { arenaId: 'default' }); }
     // Resync every 30s in case the offset drifts
     const syncInterval = setInterval(syncClock, 30_000);
 
-    socket.on('game:state', (incoming: GameState) => {
+    socket.on('game-state-update', (incoming: GameState) => {
       suppressEmitRef.current = true;
       setGame(incoming);
       gameRef.current = incoming;
@@ -214,7 +217,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setGame(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       if (!suppressEmitRef.current && socketRef.current?.connected) {
-        socketRef.current.emit('game:update', next);
+        socketRef.current.emit('game-state-update', { ...next, arenaId: 'default' });
       }
       return next;
     });
