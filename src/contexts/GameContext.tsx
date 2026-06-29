@@ -186,10 +186,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // Resync every 30s in case the offset drifts
     const syncInterval = setInterval(syncClock, 30_000);
 
-    socket.on('game-state-update', (incoming: GameState) => {
+    socket.on('game-state-update', (incoming: GameState & { arenaId?: string }) => {
+      const { arenaId: _, ...state } = incoming;
       suppressEmitRef.current = true;
-      setGame(incoming);
-      gameRef.current = incoming;
+      setGame(state as GameState);
+      gameRef.current = state as GameState;
       suppressEmitRef.current = false;
     });
 
