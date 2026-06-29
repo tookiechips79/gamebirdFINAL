@@ -236,7 +236,6 @@ export default function WalletWidget() {
     { id: 'transactions', label: 'TXN', count: txList.length },
     { id: 'membership', label: 'MEMBERSHIP' },
     { id: 'p2p', label: 'P2P TRANSFER' },
-    { id: 'challenges', label: 'CHALLENGES', count: challenges.filter(c => (c.opponentId === currentUser?.id && c.status === 'pending')).length || undefined },
   ];
 
   return (

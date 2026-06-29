@@ -1133,6 +1133,9 @@ io.on('connection', (socket) => {
       socketId: socket.id,
       loginTime: Date.now()
     });
+
+    // Join personal room so we can send targeted events (e.g. challenge notifications)
+    socket.join(`user:${userData.id}`);
     
     // Broadcast updated connected users coins to all clients
     const coinsData = await calculateConnectedUsersCoins();
@@ -1988,6 +1991,8 @@ app.post('/api/challenges', (req, res) => {
   };
   challenges.set(id, challenge);
   console.log(`🤝 [CHALLENGE] Created: ${creatorName} vs ${opponentName} for ${amount} coins`);
+  // Notify opponent in real-time
+  io.to(`user:${opponentId}`).emit('challenge:new', challenge);
   res.json({ success: true, challenge });
 });
 

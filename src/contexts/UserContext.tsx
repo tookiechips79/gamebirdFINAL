@@ -370,6 +370,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
       suppressEmitRef.current = false;
     });
 
+    socket.on('challenge:new', (challenge: Challenge) => {
+      if (!challengesRef.current.find(c => c.id === challenge.id)) {
+        updateChallenges([challenge, ...challengesRef.current]);
+      }
+    });
+
     socket.on('challenge:decided', ({ challengeId, winnerId, winnerName }: { challengeId: string; winnerId: string; loserId: string; winnerName: string; amount: number }) => {
       // Use the ref so we always have the latest challenges list
       const ch = challengesRef.current.find(c => c.id === challengeId);
@@ -404,6 +410,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (user) {
       usersRef.current = usersRef.current.map(u => u.id === user.id ? { ...u, online: true } : u);
       setUsersAndEmit(prev => prev.map(u => u.id === user.id ? { ...u, online: true } : u));
+      // Join personal socket room for targeted notifications
+      socketRef.current?.emit('user-login', { id: user.id, name: user.name, credits: user.credits });
     }
   };
 
