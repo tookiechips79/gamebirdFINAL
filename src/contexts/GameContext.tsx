@@ -184,22 +184,22 @@ export function GameProvider({ children }: { children: ReactNode }) {
     };
     socket.on('connect', joinArena);
     if (socket.connected) joinArena();
-    // Resync every 30s in case the offset drifts
     const syncInterval = setInterval(syncClock, 30_000);
 
-    socket.on('game-state-update', (incoming: GameState & { arenaId?: string }) => {
+    // Only sync bet queues from server — full game state uses different schema
+    socket.on('game-state-update', (incoming: any) => {
       if (!incoming) return;
-      const { arenaId: _aid, ...state } = incoming;
       suppressEmitRef.current = true;
       setGame(prev => ({
         ...prev,
-        ...state,
-        teamAQueue: state.teamAQueue ?? prev.teamAQueue ?? [],
-        teamBQueue: state.teamBQueue ?? prev.teamBQueue ?? [],
-        nextTeamAQueue: state.nextTeamAQueue ?? prev.nextTeamAQueue ?? [],
-        nextTeamBQueue: state.nextTeamBQueue ?? prev.nextTeamBQueue ?? [],
-        bookedBets: state.bookedBets ?? prev.bookedBets ?? [],
-        nextBookedBets: state.nextBookedBets ?? prev.nextBookedBets ?? [],
+        teamAQueue: Array.isArray(incoming.teamAQueue) ? incoming.teamAQueue : prev.teamAQueue,
+        teamBQueue: Array.isArray(incoming.teamBQueue) ? incoming.teamBQueue : prev.teamBQueue,
+        nextTeamAQueue: Array.isArray(incoming.nextTeamAQueue) ? incoming.nextTeamAQueue : prev.nextTeamAQueue,
+        nextTeamBQueue: Array.isArray(incoming.nextTeamBQueue) ? incoming.nextTeamBQueue : prev.nextTeamBQueue,
+        bookedBets: Array.isArray(incoming.bookedBets) ? incoming.bookedBets : prev.bookedBets,
+        nextBookedBets: Array.isArray(incoming.nextBookedBets) ? incoming.nextBookedBets : prev.nextBookedBets,
+        totalBookedAmount: incoming.totalBookedAmount ?? prev.totalBookedAmount,
+        nextTotalBookedAmount: incoming.nextTotalBookedAmount ?? prev.nextTotalBookedAmount,
       }));
       suppressEmitRef.current = false;
     });
