@@ -45,7 +45,7 @@ export default function AdminArena() {
   };
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100dvh', display: 'flex', flexDirection: 'column', overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+    <div style={{ background: 'var(--bg)', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
       <Header />
 
       {/* Win flash overlay */}

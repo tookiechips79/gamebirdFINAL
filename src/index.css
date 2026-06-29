@@ -25,9 +25,7 @@
 html {
   margin: 0; padding: 0;
   background: var(--bg);
-  /* Use dvh so the viewport height accounts for mobile browser chrome */
-  height: 100dvh;
-  overflow: hidden;
+  height: 100%;
 }
 
 body {
@@ -36,20 +34,14 @@ body {
   color: var(--text);
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 20px;
-  height: 100dvh;
-  overflow: hidden;
-  /* Prevent pull-to-refresh and overscroll on mobile */
+  min-height: 100%;
   overscroll-behavior: none;
-  /* Respect safe areas (notch, home bar) */
   padding-bottom: env(safe-area-inset-bottom);
 }
 
 #root {
-  height: 100dvh;
-  overflow-y: auto;
+  min-height: 100dvh;
   overflow-x: clip;
-  overscroll-behavior: none;
-  -webkit-overflow-scrolling: touch;
 }
 
 /* Portrait warning overlay — shown when device is held in portrait */
