@@ -172,7 +172,7 @@ export default function AccountSettings() {
 
   if (!currentUser) return null;
 
-  const isAdmin = currentUser.isAdmin;
+  const isAdminUser = currentUser.isAdmin;
 
   // Derived bet stats from gameHistory
   const myBets = gameHistory.flatMap(r => [

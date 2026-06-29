@@ -75,7 +75,7 @@ const platformFeatures = [
 
 export default function About() {
   return (
-    <div className="flex flex-col" style={{ minHeight: "100dvh" }} style={{ position: 'relative' }}>
+    <div className="flex flex-col" style={{ minHeight: "100dvh", position: 'relative' }}>
       {/* Background image */}
       <div
         style={{

@@ -30,7 +30,7 @@ export default function GetCoins() {
   };
 
   return (
-    <div className="flex flex-col" style={{ minHeight: "100dvh" }} style={{ position: 'relative' }}>
+    <div className="flex flex-col" style={{ minHeight: "100dvh", position: 'relative' }}>
       <div style={{ position: 'fixed', inset: 0, backgroundImage: 'url(/111.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', zIndex: 0 }} />
       <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,4,18,0.38)', zIndex: 1 }} />
 

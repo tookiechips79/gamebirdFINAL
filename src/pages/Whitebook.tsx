@@ -231,7 +231,7 @@ export default function Whitebook() {
   const totalGames = gameHistory.length;
 
   return (
-    <div className="flex flex-col" style={{ minHeight: "100dvh" }} style={{ background: 'var(--bg)' }}>
+    <div className="flex flex-col" style={{ minHeight: "100dvh", background: 'var(--bg)' }}>
       <Header />
 
       <main className="flex-1 w-full max-w-2xl mx-auto px-3 py-4 flex flex-col gap-3">

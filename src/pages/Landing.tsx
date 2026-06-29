@@ -18,7 +18,7 @@ export default function Landing() {
   const liveITM = game.totalBookedAmount * 2;
 
   return (
-    <div className="flex flex-col" style={{ minHeight: "100dvh" }} style={{ position: 'relative' }}>
+    <div className="flex flex-col" style={{ minHeight: "100dvh", position: 'relative' }}>
       {/* Background */}
       <div style={{
         position: 'fixed', inset: 0,
