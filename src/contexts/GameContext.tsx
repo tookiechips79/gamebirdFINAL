@@ -164,7 +164,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const serverUrl = window.location.hostname === 'localhost'
       ? `http://localhost:3001`
       : 'https://gamebird-app-production.up.railway.app';
-    const socket = io(serverUrl, { transports: ['polling'], upgrade: false });
+    const socket = io(serverUrl, { transports: ['websocket', 'polling'] });
     socketRef.current = socket;
 
     // NTP-lite: measure clock offset relative to server on connect (and periodically)
