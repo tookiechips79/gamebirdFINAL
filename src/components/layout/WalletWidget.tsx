@@ -144,6 +144,7 @@ const txSign: Record<string, string> = {
 
 export default function WalletWidget() {
   const { currentUser, addCredits, updateMembership, setCurrentUser, transferCredits, users, challenges, createChallenge, acceptChallenge, cancelChallenge } = useUser();
+  const pendingChallenges = challenges.filter(c => c.opponentId === currentUser?.id && c.status === 'pending').length;
   const { game, gameHistory, isAdmin, setIsAdmin } = useGame();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -249,9 +250,13 @@ export default function WalletWidget() {
             backgroundImage: 'url(https://eidk95seyu2.exactdn.com/en/blog/wp-content/uploads/2023/11/apr29-casino-how-to-manage-your-bankroll-for-baccarat-success-header-min.jpg?strip=all)',
             backgroundSize: '100%',
             backgroundPosition: 'center 70%',
+            position: 'relative',
           }}
           onClick={() => setOpen(v => !v)}
         >
+          {pendingChallenges > 0 && (
+            <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: '50%', background: 'var(--gold)', boxShadow: '0 0 6px var(--gold)', zIndex: 1 }} />
+          )}
           <span className="text-base" style={{ color: '#000' }}>◈</span>
           <div className="flex flex-col leading-tight items-start">
             <span className="text-sm mono font-black uppercase tracking-widest" style={{ color: '#000', fontWeight: 900 }}>
