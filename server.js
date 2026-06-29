@@ -275,6 +275,8 @@ const createDefaultGameState = () => ({
 });
 
 // Map to store game state for each arena
+const gbStateStore = {}; // GameBird V2 frontend state per arena
+
 let arenaGameStates = {
   'default': createDefaultGameState(),
   'one_pocket': createDefaultGameState()
@@ -999,6 +1001,11 @@ io.on('connection', (socket) => {
       // Emit initial game state with arena ID
       const gameStateData = { ...arenaState, arenaId: currentArenaId };
       socket.emit('game-state-update', gameStateData);
+
+      // Send GB V2 frontend state if available
+      if (gbStateStore[currentArenaId]) {
+        socket.emit('gb:state', gbStateStore[currentArenaId]);
+      }
       
       // Emit initial timer state with server's authoritative start time
       const currentElapsed = timer.continuousStartTime 
@@ -1260,6 +1267,15 @@ io.on('connection', (socket) => {
   });
   
   // Handle game state updates
+  // GameBird V2 frontend sync — separate namespace to avoid schema conflicts
+  socket.on('gb:state', (data) => {
+    if (!data) return;
+    const arenaId = data.arenaId || 'default';
+    if (!gbStateStore[arenaId]) gbStateStore[arenaId] = data;
+    else Object.assign(gbStateStore[arenaId], data);
+    socket.to(`arena:${arenaId}`).emit('gb:state', gbStateStore[arenaId]);
+  });
+
   socket.on('game-state-update', (gameStateData) => {
     const { arenaId = 'default', ...actualGameState } = gameStateData;
     const arenaLabel = getArenaLabel(arenaId);

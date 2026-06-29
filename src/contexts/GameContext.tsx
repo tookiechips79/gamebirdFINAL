@@ -178,9 +178,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
       clockOffsetRef.current = offset;
       setClockOffset(offset);
     });
-    socket.on('connect', syncClock);
-    if (socket.connected) syncClock();
+    const joinArena = () => {
+      syncClock();
+      socket.emit('set-arena', { arenaId: 'default' });
+    };
+    socket.on('connect', joinArena);
+    if (socket.connected) joinArena();
     const syncInterval = setInterval(syncClock, 30_000);
+
+    socket.on('gb:state', (incoming: GameState) => {
+      if (!incoming) return;
+      suppressEmitRef.current = true;
+      setGame(incoming);
+      gameRef.current = incoming;
+      suppressEmitRef.current = false;
+    });
 
     socket.on('history:state', (incoming: GameRecord[]) => {
       setGameHistory(incoming);
@@ -206,7 +218,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setGame(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       if (!suppressEmitRef.current && socketRef.current?.connected) {
-        socketRef.current.emit('game:update', next);
+        socketRef.current.emit('gb:state', { ...next, arenaId: 'default' });
       }
       return next;
     });
