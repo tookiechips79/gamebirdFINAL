@@ -146,16 +146,14 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
       {/* Description ticker at top */}
       <DescriptionTicker />
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-1.5 border-b border-[var(--border)]">
-        <span className="text-xs mono text-[var(--text)] tracking-widest">GAME #{currentGameNumber}</span>
+      <div className="flex items-center justify-center px-4 py-1.5 border-b border-[var(--border)]">
         <TimerDisplay />
-        <span className="text-xs mono text-[var(--text)] tracking-widest">1-POCKET</span>
       </div>
 
-      {/* Main scoreboard row */}
-      <div className="flex items-center px-4 py-4 gap-4">
+      {/* ── DESKTOP layout (original, untouched) ── */}
+      <div className={`${stackedLayout ? 'hidden' : 'hidden lg:flex'} items-center px-4 py-4 gap-4`}>
 
-        {/* ── TEAM A ── */}
+        {/* TEAM A — avatar left, stats right */}
         <div className="flex-1 grid gap-4" style={{ gridTemplateColumns: '112px 1fr', minWidth: 0 }}>
           <div className="flex flex-col items-center gap-1">
             <div className="flex items-center gap-1">
@@ -176,34 +174,15 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
                 </div>
               )}
             </div>
-            {stackedLayout && (
-              <div className="flex flex-col items-center mt-1">
+          </div>
+          <div className="flex flex-col gap-2 min-w-0 justify-center">
+            <div className="flex items-end gap-3">
+              <div className="flex flex-col items-center">
                 <span className="mono text-5xl font-bold neon-cyan leading-none">{teamAGames}</span>
                 <span className="text-xs text-[var(--text)] uppercase tracking-wider">games</span>
               </div>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2 min-w-0 justify-center">
-            {!stackedLayout && (
-              <div className="flex items-end gap-3">
-                <div className="flex flex-col items-center">
-                  <span className="mono text-5xl font-bold neon-cyan leading-none">{teamAGames}</span>
-                  <span className="text-xs text-[var(--text)] uppercase tracking-wider">games</span>
-                </div>
-                <div className="w-px h-10 self-center" style={{ background: 'var(--border)' }} />
-                <div className="flex flex-col items-center">
-                  <div className="flex items-center gap-1">
-                    {isAdmin && <button className="btn btn-ghost w-5 h-5 text-xs" onClick={() => updateGame({ teamABalls: teamABalls - 1 })}>−</button>}
-                    <span className="mono text-5xl font-bold leading-none" style={{ color: 'var(--cyan)' }}>{teamABalls}</span>
-                    {isAdmin && <button className="btn btn-cyan w-5 h-5 text-xs" onClick={() => updateGame({ teamABalls: teamABalls + 1 })}>+</button>}
-                  </div>
-                  <span className="text-xs text-[var(--text)] uppercase tracking-wider">balls</span>
-                </div>
-              </div>
-            )}
-            {stackedLayout && (
-              <div className="flex flex-col items-center gap-1">
+              <div className="w-px h-10 self-center" style={{ background: 'var(--border)' }} />
+              <div className="flex flex-col items-center">
                 <div className="flex items-center gap-1">
                   {isAdmin && <button className="btn btn-ghost w-5 h-5 text-xs" onClick={() => updateGame({ teamABalls: teamABalls - 1 })}>−</button>}
                   <span className="mono text-5xl font-bold leading-none" style={{ color: 'var(--cyan)' }}>{teamABalls}</span>
@@ -211,41 +190,22 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
                 </div>
                 <span className="text-xs text-[var(--text)] uppercase tracking-wider">balls</span>
               </div>
-            )}
+            </div>
             <TipButton playerName={teamAName} color="var(--cyan)" align="left" />
-            {isAdmin && (
-              <button className="btn btn-cyan w-full py-1.5 text-xs font-black tracking-widest" onClick={onTeamAWin}>✓ WIN</button>
-            )}
+            {isAdmin && <button className="btn btn-cyan w-full py-1.5 text-xs font-black tracking-widest" onClick={onTeamAWin}>✓ WIN</button>}
           </div>
         </div>
 
-        {/* ── VS ── */}
+        {/* VS */}
         <div className="flex-shrink-0 flex items-center justify-center px-2">
           <span className="mono font-black" style={{ fontSize: '2.5rem', color: 'var(--text)' }}>VS</span>
         </div>
 
-        {/* ── TEAM B ── */}
+        {/* TEAM B — stats left, avatar right */}
         <div className="flex-1 grid gap-4" style={{ gridTemplateColumns: '1fr 112px', minWidth: 0 }}>
           <div className="flex flex-col gap-2 min-w-0 items-end justify-center">
-            {!stackedLayout && (
-              <div className="flex items-end gap-3">
-                <div className="flex flex-col items-center">
-                  <div className="flex items-center gap-1">
-                    {isAdmin && <button className="btn btn-ghost w-5 h-5 text-xs" onClick={() => updateGame({ teamBBalls: teamBBalls - 1 })}>−</button>}
-                    <span className="mono text-5xl font-bold leading-none" style={{ color: 'var(--red)', textShadow: 'none' }}>{teamBBalls}</span>
-                    {isAdmin && <button className="btn btn-red w-5 h-5 text-xs" onClick={() => updateGame({ teamBBalls: teamBBalls + 1 })}>+</button>}
-                  </div>
-                  <span className="text-xs text-[var(--text)] uppercase tracking-wider">balls</span>
-                </div>
-                <div className="w-px h-10 self-center" style={{ background: 'var(--border)' }} />
-                <div className="flex flex-col items-center">
-                  <span className="mono text-5xl font-bold leading-none" style={{ color: 'var(--red)', textShadow: 'none' }}>{teamBGames}</span>
-                  <span className="text-xs text-[var(--text)] uppercase tracking-wider">games</span>
-                </div>
-              </div>
-            )}
-            {stackedLayout && (
-              <div className="flex flex-col items-center gap-1">
+            <div className="flex items-end gap-3">
+              <div className="flex flex-col items-center">
                 <div className="flex items-center gap-1">
                   {isAdmin && <button className="btn btn-ghost w-5 h-5 text-xs" onClick={() => updateGame({ teamBBalls: teamBBalls - 1 })}>−</button>}
                   <span className="mono text-5xl font-bold leading-none" style={{ color: 'var(--red)', textShadow: 'none' }}>{teamBBalls}</span>
@@ -253,13 +213,15 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
                 </div>
                 <span className="text-xs text-[var(--text)] uppercase tracking-wider">balls</span>
               </div>
-            )}
+              <div className="w-px h-10 self-center" style={{ background: 'var(--border)' }} />
+              <div className="flex flex-col items-center">
+                <span className="mono text-5xl font-bold leading-none" style={{ color: 'var(--red)', textShadow: 'none' }}>{teamBGames}</span>
+                <span className="text-xs text-[var(--text)] uppercase tracking-wider">games</span>
+              </div>
+            </div>
             <TipButton playerName={teamBName} color="var(--red)" align="right" />
-            {isAdmin && (
-              <button className="btn btn-red w-full py-1.5 text-xs font-black tracking-widest" onClick={onTeamBWin}>✓ WIN</button>
-            )}
+            {isAdmin && <button className="btn btn-red w-full py-1.5 text-xs font-black tracking-widest" onClick={onTeamBWin}>✓ WIN</button>}
           </div>
-
           <div className="flex flex-col items-center gap-1">
             <div className="flex items-center gap-1">
               {editingB && isAdmin ? (
@@ -279,13 +241,95 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
                 </div>
               )}
             </div>
-            {stackedLayout && (
-              <div className="flex flex-col items-center mt-1">
-                <span className="mono text-5xl font-bold leading-none" style={{ color: 'var(--red)' }}>{teamBGames}</span>
-                <span className="text-xs text-[var(--text)] uppercase tracking-wider">games</span>
+          </div>
+        </div>
+
+      </div>
+
+      {/* ── MOBILE layout (new stacked design) ── */}
+      <div className={`${stackedLayout ? 'flex' : 'flex lg:hidden'} items-start px-4 py-4 gap-4`}>
+
+        {/* TEAM A */}
+        <div className="flex-1 flex flex-col items-center gap-2 min-w-0">
+          <div className="flex items-center gap-1">
+            {teamAHasBreak && (
+              <span className="mono font-black text-xs flex items-center justify-center" style={{ width: 18, height: 18, border: '1.5px solid var(--gold)', color: 'var(--gold)', background: 'rgba(255,215,0,0.1)', flexShrink: 0 }}>B</span>
+            )}
+            {editingA && isAdmin ? (
+              <input autoFocus className="bg-transparent border-b border-[var(--cyan)] text-xs font-bold uppercase tracking-widest outline-none text-[var(--cyan)] w-full" value={nameA} onChange={e => setNameA(e.target.value)} onBlur={commitA} onKeyDown={e => e.key === 'Enter' && commitA()} />
+            ) : (
+              <div className="text-xs font-black uppercase tracking-widest neon-cyan cursor-pointer text-center leading-tight" onClick={() => isAdmin && setEditingA(true)}>{teamAName}</div>
+            )}
+          </div>
+          <div style={{ position: 'relative', width: '100%', maxWidth: 112, aspectRatio: '112/144', overflow: 'hidden', border: `2px solid ${lastWinner === 'A' ? 'var(--green)' : 'var(--cyan)'}` }}>
+            <img src="/alex.png" alt="Alex" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '70% center', display: 'block' }} />
+            {lastWinner === 'A' && (
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,255,65,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span className="mono font-black tracking-widest" style={{ fontSize: '0.75rem', color: '#fff', textShadow: '0 1px 3px #000', textAlign: 'center', lineHeight: 1.2 }}>🏆{'\n'}WINNER</span>
               </div>
             )}
           </div>
+          <div className="flex items-center gap-3 w-full justify-center">
+            <div className="flex flex-col items-center">
+              <span className="mono text-4xl font-bold neon-cyan leading-none">{teamAGames}</span>
+              <span className="text-xs text-[var(--text)] uppercase tracking-wider">games</span>
+            </div>
+            <div className="w-px h-8" style={{ background: 'var(--border)' }} />
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-1">
+                {isAdmin && <button className="btn btn-ghost w-5 h-5 text-xs" onClick={() => updateGame({ teamABalls: teamABalls - 1 })}>−</button>}
+                <span className="mono text-4xl font-bold leading-none" style={{ color: 'var(--cyan)' }}>{teamABalls}</span>
+                {isAdmin && <button className="btn btn-cyan w-5 h-5 text-xs" onClick={() => updateGame({ teamABalls: teamABalls + 1 })}>+</button>}
+              </div>
+              <span className="text-xs text-[var(--text)] uppercase tracking-wider">balls</span>
+            </div>
+          </div>
+          <TipButton playerName={teamAName} color="var(--cyan)" align="left" />
+          {isAdmin && <button className="btn btn-cyan w-full py-1.5 text-xs font-black tracking-widest" onClick={onTeamAWin}>✓ WIN</button>}
+        </div>
+
+        {/* VS — centered on avatar */}
+        <div className="flex-shrink-0 flex justify-center px-1" style={{ alignSelf: 'flex-start', marginTop: 'calc(1.5rem - 17px + 18%)' }}>
+          <span className="mono font-black" style={{ fontSize: '2rem', color: 'var(--text)' }}>VS</span>
+        </div>
+
+        {/* TEAM B */}
+        <div className="flex-1 flex flex-col items-center gap-2 min-w-0">
+          <div className="flex items-center gap-1">
+            {editingB && isAdmin ? (
+              <input autoFocus className="bg-transparent border-b text-xs font-bold uppercase tracking-widest outline-none text-center" style={{ borderColor: 'var(--red)', color: 'var(--red)' }} value={nameB} onChange={e => setNameB(e.target.value)} onBlur={commitB} onKeyDown={e => e.key === 'Enter' && commitB()} />
+            ) : (
+              <div className="text-xs font-black uppercase tracking-widest cursor-pointer text-center leading-tight" style={{ color: 'var(--red)' }} onClick={() => isAdmin && setEditingB(true)}>{teamBName}</div>
+            )}
+            {!teamAHasBreak && (
+              <span className="mono font-black text-xs flex items-center justify-center" style={{ width: 18, height: 18, border: '1.5px solid var(--gold)', color: 'var(--gold)', background: 'rgba(255,215,0,0.1)', flexShrink: 0 }}>B</span>
+            )}
+          </div>
+          <div style={{ position: 'relative', width: '100%', maxWidth: 112, aspectRatio: '112/144', overflow: 'hidden', border: `2px solid ${lastWinner === 'B' ? 'var(--green)' : 'var(--red)'}` }}>
+            <img src="/tony.jpg" alt="Tony" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '70% center', display: 'block' }} />
+            {lastWinner === 'B' && (
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,255,65,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span className="mono font-black tracking-widest" style={{ fontSize: '0.75rem', color: '#fff', textShadow: '0 1px 3px #000', textAlign: 'center', lineHeight: 1.2 }}>🏆{'\n'}WINNER</span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-3 w-full justify-center">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-1">
+                {isAdmin && <button className="btn btn-ghost w-5 h-5 text-xs" onClick={() => updateGame({ teamBBalls: teamBBalls - 1 })}>−</button>}
+                <span className="mono text-4xl font-bold leading-none" style={{ color: 'var(--red)' }}>{teamBBalls}</span>
+                {isAdmin && <button className="btn btn-red w-5 h-5 text-xs" onClick={() => updateGame({ teamBBalls: teamBBalls + 1 })}>+</button>}
+              </div>
+              <span className="text-xs text-[var(--text)] uppercase tracking-wider">balls</span>
+            </div>
+            <div className="w-px h-8" style={{ background: 'var(--border)' }} />
+            <div className="flex flex-col items-center">
+              <span className="mono text-4xl font-bold leading-none" style={{ color: 'var(--red)' }}>{teamBGames}</span>
+              <span className="text-xs text-[var(--text)] uppercase tracking-wider">games</span>
+            </div>
+          </div>
+          <TipButton playerName={teamBName} color="var(--red)" align="right" />
+          {isAdmin && <button className="btn btn-red w-full py-1.5 text-xs font-black tracking-widest" onClick={onTeamBWin}>✓ WIN</button>}
         </div>
 
       </div>

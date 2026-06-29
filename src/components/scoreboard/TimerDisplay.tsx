@@ -85,13 +85,15 @@ export default function TimerDisplay() {
       </div>
 
       {isAdmin && (
-        <div className="flex gap-2 mt-1">
+        <div className="flex items-center gap-2 mt-1">
+          <span className="mono text-xs font-black tracking-widest" style={{ color: '#fff' }}>GAME #{game.currentGameNumber}</span>
           <button className="btn btn-cyan px-3 py-1 text-xs" onClick={isTimerRunning ? pauseTimer : startTimer}>
             {isTimerRunning ? '⏸ PAUSE' : '▶ START'}
           </button>
           <button className="btn btn-ghost px-3 py-1 text-xs" onClick={resetTimer}>
             ↺ RESET
           </button>
+          <span className="mono text-xs font-black tracking-widest" style={{ color: '#fff' }}>1-POCKET</span>
         </div>
       )}
     </div>

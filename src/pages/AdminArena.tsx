@@ -78,71 +78,65 @@ export default function AdminArena() {
           </button>
         </div>
 
-        {/* Controls — horizontal scroll on mobile, 4-col on desktop */}
-        <div className="flex gap-px overflow-x-scroll lg:grid lg:grid-cols-4" style={{ background: 'rgba(255,215,0,0.1)', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
+        {/* Controls — stacked on mobile, 4-col on desktop */}
+        <div className="flex flex-col gap-px overflow-hidden" style={{ background: 'rgba(255,215,0,0.1)' }}>
 
           {/* Declare Winner */}
-          <div className="flex flex-col gap-2 p-3 flex-shrink-0" style={{ background: '#0a0a18', minWidth: 160 }}>
+          <div className="flex flex-col gap-1 p-2" style={{ background: '#0a0a18' }}>
             <span className="mono text-xs font-black tracking-[0.2em] uppercase" style={{ color: 'rgba(255,215,0,0.6)' }}>Declare Winner</span>
-            <button className="btn btn-cyan py-2.5 text-xs font-black tracking-widest w-full" onClick={() => handleWin('A')}>
-              ✓ {game.teamAName}
-            </button>
-            <button className="btn btn-red py-2.5 text-xs font-black tracking-widest w-full" onClick={() => handleWin('B')}>
-              ✓ {game.teamBName}
-            </button>
+            <div className="flex gap-2">
+              <button className="btn btn-cyan py-1 text-xs font-black tracking-widest flex-1" onClick={() => handleWin('A')}>
+                ✓ {game.teamAName}
+              </button>
+              <button className="btn btn-red py-1 text-xs font-black tracking-widest flex-1" onClick={() => handleWin('B')}>
+                ✓ {game.teamBName}
+              </button>
+            </div>
           </div>
 
           {/* Balls */}
-          <div className="flex flex-col gap-2 p-3 flex-shrink-0" style={{ background: '#0a0a18', minWidth: 160 }}>
+          <div className="flex flex-col gap-1 p-2" style={{ background: '#0a0a18' }}>
             <span className="mono text-xs font-black tracking-[0.2em] uppercase" style={{ color: 'rgba(255,215,0,0.6)' }}>Balls</span>
-            <div className="flex items-center justify-between gap-1">
-              <span className="mono text-xs truncate" style={{ color: 'var(--cyan)', maxWidth: 60 }}>{game.teamAName}</span>
-              <div className="flex items-center gap-1">
-                <button className="btn btn-ghost w-7 h-7 text-sm font-black" onClick={() => updateGame({ teamABalls: game.teamABalls - 1 })}>−</button>
-                <span className="mono font-black text-lg w-6 text-center" style={{ color: 'var(--cyan)' }}>{game.teamABalls}</span>
-                <button className="btn btn-cyan w-7 h-7 text-sm font-black" onClick={() => updateGame({ teamABalls: game.teamABalls + 1 })}>+</button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 flex-1">
+                <span className="mono text-xs truncate" style={{ color: 'var(--cyan)', maxWidth: 50 }}>{game.teamAName}</span>
+                <button className="btn btn-ghost w-6 h-6 text-xs font-black ml-auto" onClick={() => updateGame({ teamABalls: game.teamABalls - 1 })}>−</button>
+                <span className="mono font-black text-sm w-5 text-center" style={{ color: 'var(--cyan)' }}>{game.teamABalls}</span>
+                <button className="btn btn-cyan w-6 h-6 text-xs font-black" onClick={() => updateGame({ teamABalls: game.teamABalls + 1 })}>+</button>
               </div>
-            </div>
-            <div className="flex items-center justify-between gap-1">
-              <span className="mono text-xs truncate" style={{ color: 'var(--red)', maxWidth: 60 }}>{game.teamBName}</span>
-              <div className="flex items-center gap-1">
-                <button className="btn btn-ghost w-7 h-7 text-sm font-black" onClick={() => updateGame({ teamBBalls: game.teamBBalls - 1 })}>−</button>
-                <span className="mono font-black text-lg w-6 text-center" style={{ color: 'var(--red)' }}>{game.teamBBalls}</span>
-                <button className="btn btn-red w-7 h-7 text-sm font-black" onClick={() => updateGame({ teamBBalls: game.teamBBalls + 1 })}>+</button>
+              <div className="w-px h-5" style={{ background: 'rgba(255,215,0,0.2)' }} />
+              <div className="flex items-center gap-1 flex-1">
+                <span className="mono text-xs truncate" style={{ color: 'var(--red)', maxWidth: 50 }}>{game.teamBName}</span>
+                <button className="btn btn-ghost w-6 h-6 text-xs font-black ml-auto" onClick={() => updateGame({ teamBBalls: game.teamBBalls - 1 })}>−</button>
+                <span className="mono font-black text-sm w-5 text-center" style={{ color: 'var(--red)' }}>{game.teamBBalls}</span>
+                <button className="btn btn-red w-6 h-6 text-xs font-black" onClick={() => updateGame({ teamBBalls: game.teamBBalls + 1 })}>+</button>
               </div>
             </div>
           </div>
 
           {/* Users & Audit */}
-          <div className="flex flex-col gap-2 p-3 flex-shrink-0" style={{ background: '#0a0a18', minWidth: 160 }}>
+          <div className="flex flex-col gap-1 p-2" style={{ background: '#0a0a18' }}>
             <span className="mono text-xs font-black tracking-[0.2em] uppercase" style={{ color: 'rgba(255,215,0,0.6)' }}>Management</span>
-            <button className="btn btn-cyan py-2.5 text-xs font-black tracking-widest w-full" onClick={() => setShowUserManager(true)}>
-              USERS
-            </button>
-            <button
-              className="btn py-2.5 text-xs font-black tracking-widest w-full"
-              style={{ color: unackedAlerts > 0 ? 'var(--red)' : 'var(--text-dim)', border: `1px solid ${unackedAlerts > 0 ? 'var(--red)' : 'rgba(255,255,255,0.15)'}`, background: unackedAlerts > 0 ? 'rgba(255,0,64,0.08)' : 'transparent' }}
-              onClick={() => setShowAuditLog(true)}
-            >
-              {unackedAlerts > 0 ? `⚠ AUDIT (${unackedAlerts})` : 'AUDIT LOG'}
-            </button>
+            <div className="flex gap-2">
+              <button className="btn btn-cyan py-1 text-xs font-black tracking-widest flex-1" onClick={() => setShowUserManager(true)}>USERS</button>
+              <button
+                className="btn py-1 text-xs font-black tracking-widest flex-1"
+                style={{ color: unackedAlerts > 0 ? 'var(--red)' : 'var(--text-dim)', border: `1px solid ${unackedAlerts > 0 ? 'var(--red)' : 'rgba(255,255,255,0.15)'}`, background: unackedAlerts > 0 ? 'rgba(255,0,64,0.08)' : 'transparent' }}
+                onClick={() => setShowAuditLog(true)}
+              >
+                {unackedAlerts > 0 ? `⚠ (${unackedAlerts})` : 'AUDIT'}
+              </button>
+            </div>
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col gap-2 p-3 flex-shrink-0" style={{ background: '#0a0a18', minWidth: 160 }}>
+          <div className="flex flex-col gap-1 p-2" style={{ background: '#0a0a18' }}>
             <span className="mono text-xs font-black tracking-[0.2em] uppercase" style={{ color: 'rgba(255,215,0,0.6)' }}>Actions</span>
-            <Link to="/whitebook" className="btn btn-ghost py-2.5 text-xs font-black tracking-widest w-full text-center" style={{ textDecoration: 'none' }}>
-              WHITEBOOK
-            </Link>
-            <button className="btn btn-ghost py-2.5 text-xs font-black tracking-widest w-full" onClick={() => resetQueues()}>
-              CLEAR QUEUE
-            </button>
-            <button
-              className="btn btn-ghost py-2.5 text-xs font-black tracking-widest w-full"
-              onClick={() => { if (confirm('Reset all scores to 0?')) updateGame({ teamAGames: 0, teamBGames: 0, teamABalls: 0, teamBBalls: 0, currentGameNumber: 1 }); }}
-            >
-              RESET SCORES
-            </button>
+            <div className="flex gap-2">
+              <Link to="/whitebook" className="btn btn-ghost py-1 text-xs font-black tracking-widest flex-1 text-center" style={{ textDecoration: 'none' }}>WHITEBOOK</Link>
+              <button className="btn btn-ghost py-1 text-xs font-black tracking-widest flex-1" onClick={() => resetQueues()}>CLEAR Q</button>
+              <button className="btn btn-ghost py-1 text-xs font-black tracking-widest flex-1" onClick={() => { if (confirm('Reset all scores to 0?')) updateGame({ teamAGames: 0, teamBGames: 0, teamABalls: 0, teamBBalls: 0, currentGameNumber: 1 }); }}>RESET</button>
+            </div>
           </div>
 
         </div>

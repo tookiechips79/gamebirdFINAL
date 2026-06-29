@@ -74,10 +74,13 @@ function BetButtons({ color, teamSide, isNextGame, onPlaceBet }: {
     if (amt > 0) { onPlaceBet(teamSide, amt, isNextGame); setInputAmt(''); }
   };
   return (
-    <div className="flex flex-col gap-1.5 p-2" style={{ width: 96 }}>
+    <div
+      className={`flex flex-col gap-1.5 p-2 bet-buttons-col bet-buttons-${teamSide}`}
+      style={{ width: 96 }}
+    >
       {[10, 50, 100].map(amt => (
         <button key={amt}
-          className="flex items-center justify-center text-xs font-black mono transition-all active:scale-95"
+          className="bet-circle flex items-center justify-center text-xs font-black mono transition-all active:scale-95"
           style={{ width: 52, height: 52, borderRadius: '50%', background: `${color}18`, border: `2px solid ${color}`, color, boxShadow: `0 0 8px ${color}30`, alignSelf: 'center', margin: '0 auto' }}
           onMouseEnter={e => { playHoverSound(); e.currentTarget.style.background = color; e.currentTarget.style.color = '#000'; e.currentTarget.style.boxShadow = `0 0 16px ${color}`; }}
           onMouseLeave={e => { e.currentTarget.style.background = `${color}18`; e.currentTarget.style.color = color; e.currentTarget.style.boxShadow = `0 0 8px ${color}30`; }}
@@ -91,6 +94,17 @@ function BetButtons({ color, teamSide, isNextGame, onPlaceBet }: {
       <button className="w-full py-1.5 text-xs font-black tracking-widest mono transition-all active:scale-95"
         style={{ background: color, color: '#000', border: 'none', boxShadow: `0 0 8px ${color}50` }}
         onClick={submit}>BET</button>
+      <style>{`
+        @media (max-width: 1023px) {
+          .bet-circle { width: 42px !important; height: 42px !important; }
+          .bet-buttons-col { width: 80px !important; }
+          .bet-buttons-A { margin-left: -5px; margin-top: 60px; }
+          .bet-buttons-B { margin-right: -5px; margin-top: 60px; }
+        }
+        @media (min-width: 1024px) {
+          .bet-buttons-A, .bet-buttons-B { margin-top: 24px; }
+        }
+      `}</style>
     </div>
   );
 }
