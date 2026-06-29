@@ -52,6 +52,8 @@
   </head>
 
   <body>
+    <!-- Safari PWA pull-down trap — absorbs swipe-down gesture at top of screen -->
+    <div style="position:fixed;top:0;left:0;right:0;height:24px;z-index:99999;background:transparent;" ontouchstart="event.preventDefault()" ontouchmove="event.preventDefault()"></div>
     <div id="root" style="width: 100%; height: 100%; background: black;"></div>
 
     <!-- Portrait mode warning -->
