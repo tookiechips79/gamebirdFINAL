@@ -45,7 +45,7 @@ export default function AdminArena() {
   };
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ background: 'var(--bg)' }}>
       <Header />
 
       {/* Win flash overlay */}
