@@ -25,8 +25,8 @@
 html {
   margin: 0; padding: 0;
   background: var(--bg);
-  height: 100%;
-  overscroll-behavior-y: none;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 body {
@@ -35,14 +35,18 @@ body {
   color: var(--text);
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 20px;
-  min-height: 100%;
-  overscroll-behavior-y: none;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
   padding-bottom: env(safe-area-inset-bottom);
 }
 
 #root {
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow-y: auto;
   overflow-x: clip;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Portrait warning overlay — shown when device is held in portrait */
