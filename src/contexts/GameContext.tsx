@@ -178,33 +178,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       clockOffsetRef.current = offset;
       setClockOffset(offset);
     });
-    socket.on('connect', () => {
-      syncClock();
-      socket.emit('request-game-state', { arenaId: 'default' });
-    });
-    if (socket.connected) { syncClock(); socket.emit('request-game-state', { arenaId: 'default' }); }
+    socket.on('connect', syncClock);
+    if (socket.connected) syncClock();
     // Resync every 30s in case the offset drifts
     const syncInterval = setInterval(syncClock, 30_000);
-
-    socket.on('game-state-update', (incoming: GameState & { arenaId?: string }) => {
-      if (!incoming) return;
-      const { arenaId: _, ...state } = incoming;
-      // Ensure arrays are never null/undefined
-      const safe: GameState = {
-        ...gameRef.current,
-        ...state,
-        teamAQueue: state.teamAQueue ?? gameRef.current.teamAQueue ?? [],
-        teamBQueue: state.teamBQueue ?? gameRef.current.teamBQueue ?? [],
-        nextTeamAQueue: state.nextTeamAQueue ?? gameRef.current.nextTeamAQueue ?? [],
-        nextTeamBQueue: state.nextTeamBQueue ?? gameRef.current.nextTeamBQueue ?? [],
-        bookedBets: state.bookedBets ?? gameRef.current.bookedBets ?? [],
-        nextBookedBets: state.nextBookedBets ?? gameRef.current.nextBookedBets ?? [],
-      };
-      suppressEmitRef.current = true;
-      setGame(safe);
-      gameRef.current = safe;
-      suppressEmitRef.current = false;
-    });
 
     socket.on('history:state', (incoming: GameRecord[]) => {
       setGameHistory(incoming);
@@ -230,7 +207,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setGame(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       if (!suppressEmitRef.current && socketRef.current?.connected) {
-        socketRef.current.emit('game-state-update', { ...next, arenaId: 'default' });
+        socketRef.current.emit('game:update', next);
       }
       return next;
     });
