@@ -178,31 +178,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       clockOffsetRef.current = offset;
       setClockOffset(offset);
     });
-    const joinArena = () => {
-      syncClock();
-      socket.emit('set-arena', { arenaId: 'default' });
-    };
-    socket.on('connect', joinArena);
-    if (socket.connected) joinArena();
+    socket.on('connect', syncClock);
+    if (socket.connected) syncClock();
     const syncInterval = setInterval(syncClock, 30_000);
-
-    // Only sync bet queues from server — full game state uses different schema
-    socket.on('game-state-update', (incoming: any) => {
-      if (!incoming) return;
-      suppressEmitRef.current = true;
-      setGame(prev => ({
-        ...prev,
-        teamAQueue: Array.isArray(incoming.teamAQueue) ? incoming.teamAQueue : prev.teamAQueue,
-        teamBQueue: Array.isArray(incoming.teamBQueue) ? incoming.teamBQueue : prev.teamBQueue,
-        nextTeamAQueue: Array.isArray(incoming.nextTeamAQueue) ? incoming.nextTeamAQueue : prev.nextTeamAQueue,
-        nextTeamBQueue: Array.isArray(incoming.nextTeamBQueue) ? incoming.nextTeamBQueue : prev.nextTeamBQueue,
-        bookedBets: Array.isArray(incoming.bookedBets) ? incoming.bookedBets : prev.bookedBets,
-        nextBookedBets: Array.isArray(incoming.nextBookedBets) ? incoming.nextBookedBets : prev.nextBookedBets,
-        totalBookedAmount: incoming.totalBookedAmount ?? prev.totalBookedAmount,
-        nextTotalBookedAmount: incoming.nextTotalBookedAmount ?? prev.nextTotalBookedAmount,
-      }));
-      suppressEmitRef.current = false;
-    });
 
     socket.on('history:state', (incoming: GameRecord[]) => {
       setGameHistory(incoming);
@@ -228,7 +206,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setGame(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       if (!suppressEmitRef.current && socketRef.current?.connected) {
-        socketRef.current.emit('game-state-update', { ...next, arenaId: 'default' });
+        socketRef.current.emit('game:update', next);
       }
       return next;
     });
