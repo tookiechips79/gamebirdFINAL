@@ -47,11 +47,6 @@ body {
 }
 
 /* Portrait warning overlay — shown when device is held in portrait */
-@media (orientation: portrait) and (max-width: 900px) and (hover: none) and (pointer: coarse) {
-  #portrait-warning {
-    display: flex !important;
-  }
-}
 
 #portrait-warning {
   display: none;

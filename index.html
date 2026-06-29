@@ -20,7 +20,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="Game Bird" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="screen-orientation" content="landscape" />
+    <meta name="screen-orientation" content="portrait" />
 
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json" />
@@ -50,12 +50,6 @@
   <body>
     <div id="root" style="width: 100%; height: 100%; background: black;"></div>
 
-    <!-- Portrait mode warning -->
-    <div id="portrait-warning">
-      <div class="rotate-icon">⟳</div>
-      <div style="font-size: 1.4rem; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase;">Rotate Your Device</div>
-      <div style="font-size: 1rem; color: #888; margin-top: 4px;">GameBird is optimized for landscape</div>
-    </div>
 
     <script>
       console.log('🚀 Game Bird App Loading...');
@@ -68,17 +62,6 @@
     <script type="module" src="/src/main.tsx"></script>
 
     <script>
-      // Lock to landscape + go fullscreen to hide browser chrome
-      function enterFullscreenLandscape() {
-        const el = document.documentElement;
-        const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
-        if (req) req.call(el).catch(() => {});
-        if (screen.orientation && screen.orientation.lock) {
-          screen.orientation.lock('landscape').catch(() => {});
-        }
-      }
-      document.addEventListener('click', enterFullscreenLandscape, { once: true });
-      document.addEventListener('touchstart', enterFullscreenLandscape, { once: true });
 
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
