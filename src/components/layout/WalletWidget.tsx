@@ -144,7 +144,7 @@ const txSign: Record<string, string> = {
 
 export default function WalletWidget() {
   const { currentUser, addCredits, updateMembership, setCurrentUser, transferCredits, users, challenges, createChallenge, acceptChallenge, cancelChallenge } = useUser();
-  const { game, gameHistory, isAdmin } = useGame();
+  const { game, gameHistory, isAdmin, setIsAdmin } = useGame();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [walletTab, setWalletTab] = useState<WalletTab>('receipts');
@@ -335,7 +335,7 @@ export default function WalletWidget() {
             <button
               className="px-4 py-2 text-xs mono tracking-widest"
               style={{ color: 'var(--text)', cursor: 'pointer' }}
-              onClick={() => { setCurrentUser(null); navigate('/'); }}
+              onClick={() => { setCurrentUser(null); if (isAdmin) setIsAdmin(false); navigate('/'); }}
             >
               LOG OUT
             </button>

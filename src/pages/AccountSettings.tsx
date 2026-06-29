@@ -7,6 +7,7 @@ import { User } from '@/types';
 
 function MembershipTab({ currentUser, navigate }: { currentUser: User; navigate: (p: string) => void }) {
   const { setCurrentUser, updateMembership } = useUser();
+  const { isAdmin, setIsAdmin } = useGame();
   const [confirmCancel, setConfirmCancel] = useState(false);
 
   const mem = currentUser.membership;
@@ -136,7 +137,7 @@ function MembershipTab({ currentUser, navigate }: { currentUser: User; navigate:
         <Link to="/arena" className="btn btn-cyan flex-1 py-3 text-sm font-black tracking-widest text-center" style={{ textDecoration: 'none' }}>
           ▶ ENTER ARENA
         </Link>
-        <button className="btn btn-ghost flex-1 py-3 text-sm font-black tracking-widest" onClick={() => { setCurrentUser(null); navigate('/'); }}>
+        <button className="btn btn-ghost flex-1 py-3 text-sm font-black tracking-widest" onClick={() => { setCurrentUser(null); if (isAdmin) setIsAdmin(false); navigate('/'); }}>
           LOG OUT
         </button>
       </div>
@@ -148,7 +149,7 @@ type Tab = 'wallet' | 'bets' | 'transactions' | 'users' | 'membership';
 
 export default function AccountSettings() {
   const { currentUser, setCurrentUser, users, addUser, renameUser, deleteUser, addCredits, updateMembership } = useUser();
-  const { gameHistory } = useGame();
+  const { gameHistory, isAdmin, setIsAdmin } = useGame();
   const navigate = useNavigate();
 
   const [tab, setTab] = useState<Tab>('wallet');
