@@ -22,6 +22,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    chunkSizeWarningLimit: 1000,
     // Force cache busting with timestamp-based file names
     rollupOptions: {
       output: {
