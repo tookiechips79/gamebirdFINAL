@@ -3,8 +3,19 @@ import { useUser } from '@/contexts/UserContext';
 import { User } from '@/types';
 
 function UserRow({ user }: { user: User }) {
-  const { addCredits, deleteUser } = useUser();
+  const { addCredits, deleteUser, updateMembership } = useUser();
   const [custom, setCustom] = useState('');
+
+  const isPremium = user.membership?.tier === 'premium' && !user.membership?.cancelledAt;
+
+  const activateMembership = () => {
+    updateMembership(user.id, { tier: 'premium', startDate: Date.now(), renewsAt: Date.now() + 365 * 24 * 60 * 60 * 1000 });
+  };
+
+  const revokeMembership = () => {
+    if (confirm(`Revoke premium for ${user.name}?`))
+      updateMembership(user.id, { tier: 'premium', startDate: user.membership?.startDate ?? Date.now(), cancelledAt: Date.now() });
+  };
 
   return (
     <div style={{ background: '#0a0a1a', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -46,6 +57,29 @@ function UserRow({ user }: { user: User }) {
           style={{ flex: 1, background: 'none', border: '1px solid rgba(255,255,255,0.2)', color: '#888', fontWeight: 700, fontSize: 11, padding: '8px 0', cursor: 'pointer' }}>
           ZERO
         </button>
+      </div>
+
+      {/* Membership */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 11, fontFamily: 'monospace', color: isPremium ? '#00ff41' : '#888', letterSpacing: 1 }}>
+          {isPremium ? '★ PREMIUM' : 'FREE'}
+        </span>
+        <div style={{ flex: 1, display: 'flex', gap: 6 }}>
+          <button
+            onClick={activateMembership}
+            disabled={isPremium}
+            style={{ flex: 1, background: isPremium ? 'rgba(0,255,65,0.08)' : '#00ff41', border: '1px solid #00ff41', color: isPremium ? '#00ff41' : '#000', fontWeight: 900, fontSize: 11, padding: '6px 0', cursor: isPremium ? 'default' : 'pointer', opacity: isPremium ? 0.4 : 1 }}
+          >
+            ACTIVATE
+          </button>
+          <button
+            onClick={revokeMembership}
+            disabled={!isPremium}
+            style={{ flex: 1, background: 'none', border: '1px solid #ff0040', color: '#ff0040', fontWeight: 900, fontSize: 11, padding: '6px 0', cursor: !isPremium ? 'default' : 'pointer', opacity: !isPremium ? 0.3 : 1 }}
+          >
+            REVOKE
+          </button>
+        </div>
       </div>
 
       {/* Custom */}
