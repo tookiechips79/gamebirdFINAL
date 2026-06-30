@@ -6,7 +6,36 @@ import { useGame } from '@/contexts/GameContext';
 import { User } from '@/types';
 
 function MembershipTab({ currentUser, navigate }: { currentUser: User; navigate: (p: string) => void }) {
-  const { setCurrentUser, updateMembership } = useUser();
+  const { setCurrentUser, updateMembership, addUser, users, requestAllUsers } = useUser();
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState('');
+
+  const fetchFromDb = () => {
+    const serverUrl = window.location.hostname === 'localhost'
+      ? 'http://localhost:3001'
+      : 'https://gamebird-app-production.up.railway.app';
+    setSyncing(true);
+    setSyncMsg('');
+    requestAllUsers();
+    setTimeout(() => {
+      fetch(`${serverUrl}/api/users`)
+        .then(r => r.json())
+        .then((serverUsers: any[]) => {
+          let added = 0;
+          serverUsers.forEach(su => {
+            if (su.isAdmin) return;
+            const exists = users.find(u => u.id === su.id || u.name.toLowerCase() === su.name.toLowerCase());
+            if (!exists) { addUser(su.name, false, su.credits || 0); added++; }
+            if (su.membershipStatus === 'premium' && exists && !(exists.membership?.tier === 'premium' && !exists.membership?.cancelledAt)) {
+              updateMembership(exists.id, { tier: 'premium', startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 });
+            }
+          });
+          setSyncMsg(`✓ Synced — ${serverUsers.filter(u => !u.isAdmin).length} users loaded`);
+        })
+        .catch(() => setSyncMsg('Sync failed — try again'))
+        .finally(() => setSyncing(false));
+    }, 1000);
+  };
   const { isAdmin, setIsAdmin } = useGame();
   const [confirmCancel, setConfirmCancel] = useState(false);
 
@@ -132,6 +161,16 @@ function MembershipTab({ currentUser, navigate }: { currentUser: User; navigate:
           </div>
         ))}
       </div>
+
+      <button
+        className="btn btn-ghost w-full py-2.5 text-sm font-black tracking-widest"
+        style={{ border: '1px solid var(--cyan)', color: 'var(--cyan)', opacity: syncing ? 0.5 : 1 }}
+        onClick={fetchFromDb}
+        disabled={syncing}
+      >
+        {syncing ? '⟳ FETCHING...' : '⟳ FETCH DATA'}
+      </button>
+      {syncMsg && <div className="text-xs mono text-center" style={{ color: 'var(--green)' }}>{syncMsg}</div>}
 
       <div className="flex gap-3">
         <Link to="/arena" className="btn btn-cyan flex-1 py-3 text-sm font-black tracking-widest text-center" style={{ textDecoration: 'none' }}>
