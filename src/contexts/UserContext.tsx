@@ -290,6 +290,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const expectedTotalRef = useRef<number>(totalWithPending(users));
   const initialSyncDoneRef = useRef(false);
+  // Settlement cooldown — suppress DB syncs for 4 seconds after game settlement
+  // so partial persistBalance calls don't overwrite correct client credits with stale DB values
+  const settlementCooldownUntilRef = useRef(0);
   // Always recompute on load so the expected is in sync with the current formula
   useEffect(() => {
     const t = totalWithPending(users);
@@ -679,6 +682,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const next = usersRef.current.map(update);
     usersRef.current = next;
     setUsersAndEmit(prev => prev.map(update));
+    // Block DB syncs for 4s so partial persistBalance responses don't overwrite correct credits
+    settlementCooldownUntilRef.current = Date.now() + 4000;
     // Persist ALL affected players (winners AND losers) so DB stays in sync
     next.forEach(u => { if (affectedIds.has(u.id)) persistBalance(u.id, u.credits); });
     checkDrift(`Game #${gameNumber} settled`, next);
@@ -738,6 +743,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
         };
       }
     });
+    // During settlement cooldown, skip credit updates — DB may be partially written
+    // (some persistBalance calls completed, others haven't yet)
+    if (Date.now() < settlementCooldownUntilRef.current) {
+      // Only update non-credit fields (membership) — leave credits as-is
+      merged = usersRef.current.map(u => {
+        const su = serverUsers.find((s: any) => s.id === u.id);
+        if (!su) return u;
+        const isPremium = su.membershipStatus === 'premium';
+        const premiumMembership = { tier: 'premium' as const, startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 };
+        return { ...u, membership: isPremium ? (u.membership?.tier === 'premium' && !u.membership?.cancelledAt ? u.membership : premiumMembership) : undefined };
+      });
+    }
+
     usersRef.current = merged;
     setUsers(merged);
     // On first server sync, reset expectedTotal to the authoritative DB total
