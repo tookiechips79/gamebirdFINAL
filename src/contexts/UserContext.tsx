@@ -381,7 +381,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     // Server asks all clients to re-push their user list (triggered by admin opening User Manager)
     socket.on('users:push', () => {
-      const toEmit = usersRef.current.filter(u => !serverDeletedIdsRef.current.has(u.id));
+      const toEmit = usersRef.current
+        .filter(u => !serverDeletedIdsRef.current.has(u.id))
+        .map(({ id, name, isAdmin, membership, online }) => ({ id, name, isAdmin, membership, online }));
       if (toEmit.length > 0) socket.emit('users:update', toEmit);
       fetchAndMergeFromServer();
     });
@@ -415,7 +417,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setUsers(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       if (!suppressEmitRef.current && socketRef.current?.connected) {
-        socketRef.current.emit('users:update', next);
+        // Strip credits before emitting — credits are DB-authoritative only
+        // and must never flow client→server→DB or corrupt other devices
+        const safe = next.map(({ id, name, isAdmin, membership, online }) => ({ id, name, isAdmin, membership, online }));
+        socketRef.current.emit('users:update', safe);
       }
       return next;
     });
