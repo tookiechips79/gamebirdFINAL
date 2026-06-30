@@ -27,6 +27,7 @@ interface UserContextType {
   clearPendingBetsForGame: (gameNumber: number, payouts: { userId: string; amount: number }[]) => void;
   updateMembership: (userId: string, membership: Membership | null) => void;
   requestAllUsers: () => void;
+  mergeServerUsers: (serverUsers: any[]) => void;
   coinAuditLog: CoinAuditEntry[];
   acknowledgeAudit: (id: string) => void;
   clearAuditLog: () => void;
@@ -667,8 +668,31 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const requestAllUsers = () => { socketRef.current?.emit('users:request-all'); };
 
+  const mergeServerUsers = (serverUsers: any[]) => {
+    suppressEmitRef.current = true;
+    const merged = [...usersRef.current];
+    serverUsers.forEach(su => {
+      if (su.isAdmin) return;
+      const idx = merged.findIndex(m => m.id === su.id);
+      if (idx === -1) {
+        merged.push({
+          id: su.id, name: su.name, credits: su.credits || 0,
+          isAdmin: false, pendingBets: [],
+          membership: su.membershipStatus === 'premium'
+            ? { tier: 'premium', startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 }
+            : undefined,
+        });
+      } else if (su.membershipStatus === 'premium' && !(merged[idx].membership?.tier === 'premium' && !merged[idx].membership?.cancelledAt)) {
+        merged[idx] = { ...merged[idx], membership: { tier: 'premium', startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 } };
+      }
+    });
+    usersRef.current = merged;
+    setUsers(merged);
+    suppressEmitRef.current = false;
+  };
+
   return (
-    <UserContext.Provider value={{ users, currentUser, setCurrentUser, addUser, setPin, renameUser, deleteUser, getUserById, deductCredits, addCredits, refundBet, recordTip, clearPendingBetsForGame, updateMembership, coinAuditLog, acknowledgeAudit, clearAuditLog, gameSnapshots, clearSnapshots, recordGameSnapshot, adminAuditLog, clearAdminAudit, transferCredits, challenges, createChallenge, acceptChallenge, cancelChallenge, payoutChallenge, requestAllUsers }}>
+    <UserContext.Provider value={{ users, currentUser, setCurrentUser, addUser, setPin, renameUser, deleteUser, getUserById, deductCredits, addCredits, refundBet, recordTip, clearPendingBetsForGame, updateMembership, coinAuditLog, acknowledgeAudit, clearAuditLog, gameSnapshots, clearSnapshots, recordGameSnapshot, adminAuditLog, clearAdminAudit, transferCredits, challenges, createChallenge, acceptChallenge, cancelChallenge, payoutChallenge, requestAllUsers, mergeServerUsers }}>
       {children}
     </UserContext.Provider>
 

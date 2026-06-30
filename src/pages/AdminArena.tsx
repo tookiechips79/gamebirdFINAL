@@ -24,7 +24,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 
 export default function AdminArena() {
   const { game, declareWinner, isAdmin, setIsAdmin, resetQueues, updateGame } = useGame();
-  const { users, currentUser, coinAuditLog, requestAllUsers, addUser, updateMembership } = useUser();
+  const { users, currentUser, coinAuditLog, requestAllUsers, mergeServerUsers } = useUser();
   const [fetchingUsers, setFetchingUsers] = React.useState(false);
 
   const fetchUsersFromDb = () => {
@@ -36,17 +36,7 @@ export default function AdminArena() {
     setTimeout(() => {
       fetch(`${serverUrl}/api/users`)
         .then(r => r.json())
-        .then((serverUsers: any[]) => {
-          serverUsers.forEach(su => {
-            if (su.isAdmin) return;
-            const exists = users.find(u => u.id === su.id || u.name.toLowerCase() === su.name.toLowerCase());
-            if (!exists) addUser(su.name, false, su.credits || 0);
-            if (su.membershipStatus === 'premium' && exists) {
-              const already = exists.membership?.tier === 'premium' && !exists.membership?.cancelledAt;
-              if (!already) updateMembership(exists.id, { tier: 'premium', startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 });
-            }
-          });
-        })
+        .then((serverUsers: any[]) => mergeServerUsers(serverUsers))
         .catch(() => {})
         .finally(() => setFetchingUsers(false));
     }, 1000);

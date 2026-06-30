@@ -15,7 +15,7 @@ import CoinAuditLog from '@/components/admin/CoinAuditLog';
 
 export default function Arena() {
   const { game, declareWinner, isAdmin, setIsAdmin, resetQueues, updateGame } = useGame();
-  const { users, currentUser, coinAuditLog, requestAllUsers, addUser, updateMembership } = useUser();
+  const { users, currentUser, coinAuditLog, requestAllUsers, mergeServerUsers } = useUser();
   const [fetchingData, setFetchingData] = useState(false);
 
   const fetchDataFromDb = () => {
@@ -27,16 +27,7 @@ export default function Arena() {
     setTimeout(() => {
       fetch(`${serverUrl}/api/users`)
         .then(r => r.json())
-        .then((serverUsers: any[]) => {
-          serverUsers.forEach(su => {
-            if (su.isAdmin) return;
-            const exists = users.find(u => u.id === su.id || u.name.toLowerCase() === su.name.toLowerCase());
-            if (!exists) addUser(su.name, false, su.credits || 0);
-            if (su.membershipStatus === 'premium' && exists && !(exists.membership?.tier === 'premium' && !exists.membership?.cancelledAt)) {
-              updateMembership(exists.id, { tier: 'premium', startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 });
-            }
-          });
-        })
+        .then((serverUsers: any[]) => mergeServerUsers(serverUsers))
         .catch(() => {})
         .finally(() => setFetchingData(false));
     }, 1000);

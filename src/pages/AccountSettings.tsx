@@ -6,7 +6,7 @@ import { useGame } from '@/contexts/GameContext';
 import { User } from '@/types';
 
 function MembershipTab({ currentUser, navigate }: { currentUser: User; navigate: (p: string) => void }) {
-  const { setCurrentUser, updateMembership, addUser, users, requestAllUsers } = useUser();
+  const { setCurrentUser, requestAllUsers, mergeServerUsers } = useUser();
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
 
@@ -21,16 +21,8 @@ function MembershipTab({ currentUser, navigate }: { currentUser: User; navigate:
       fetch(`${serverUrl}/api/users`)
         .then(r => r.json())
         .then((serverUsers: any[]) => {
-          let added = 0;
-          serverUsers.forEach(su => {
-            if (su.isAdmin) return;
-            const exists = users.find(u => u.id === su.id || u.name.toLowerCase() === su.name.toLowerCase());
-            if (!exists) { addUser(su.name, false, su.credits || 0); added++; }
-            if (su.membershipStatus === 'premium' && exists && !(exists.membership?.tier === 'premium' && !exists.membership?.cancelledAt)) {
-              updateMembership(exists.id, { tier: 'premium', startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 });
-            }
-          });
-          setSyncMsg(`✓ Synced — ${serverUsers.filter(u => !u.isAdmin).length} users loaded`);
+          mergeServerUsers(serverUsers);
+          setSyncMsg(`✓ Synced — ${serverUsers.filter((u: any) => !u.isAdmin).length} users loaded`);
         })
         .catch(() => setSyncMsg('Sync failed — try again'))
         .finally(() => setSyncing(false));
