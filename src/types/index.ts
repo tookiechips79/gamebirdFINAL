@@ -130,6 +130,7 @@ export interface GameState {
   isTimerRunning: boolean;
   timerVersion?: number;
   lastWinner: 'A' | 'B' | null;
+  preGameBalances: Record<string, number>;
 }
 
 export interface SnapshotBet {

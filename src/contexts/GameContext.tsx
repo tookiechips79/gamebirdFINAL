@@ -53,6 +53,7 @@ const defaultGame: GameState = {
   timerElapsedMs: 0,
   isTimerRunning: false,
   lastWinner: null,
+  preGameBalances: {},
 };
 
 function loadGame(): GameState {
@@ -286,6 +287,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       timestamp: Date.now(),
     };
 
+    // Capture balance BEFORE deduction — only on first bet per user per game
+    const preBalance = user.credits;
+
     // Deduct immediately (pending bet system)
     const ok = deductCredits(userId, amount, { id: betId, gameNumber, amount, teamSide });
     if (!ok) return false;
@@ -303,6 +307,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const totalBooked = bookedBets.reduce((s, b) => s + b.amount, 0) +
         prev[bookedKey].reduce((s, b) => s + b.amount, 0);
 
+      // Record pre-game balance only on first bet (don't overwrite subsequent bets)
+      const preGameBalances = userId in prev.preGameBalances
+        ? prev.preGameBalances
+        : { ...prev.preGameBalances, [userId]: preBalance };
+
       return {
         ...prev,
         [aKey]: updatedA,
@@ -310,6 +319,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         [bookedKey]: [...prev[bookedKey], ...bookedBets],
         [totalKey]: totalBooked,
         betCounter: prev.betCounter + 1,
+        preGameBalances,
       };
     });
 
@@ -388,17 +398,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       payoutMap[winnerId] = (payoutMap[winnerId] || 0) + bb.amount * 2;
     }
 
-    // before = current credits + all bets this user placed this game (matched + unmatched)
-    // Using the game queues directly — always in sync with gameRef at settlement time
-    const allQueueBets = [...g.teamAQueue, ...g.teamBQueue];
-    const queueSumByUser: Record<string, number> = {};
-    allQueueBets.forEach(b => {
-      queueSumByUser[b.userId] = (queueSumByUser[b.userId] || 0) + b.amount;
-    });
-
     const afterPlayers = Object.entries(snapMap).map(([userId, data]) => {
-      const u = getUserById(userId);
-      const before = (u?.credits ?? 0) + (queueSumByUser[userId] || 0);
+      const before = g.preGameBalances[userId] ?? 0;
       const payout = payoutMap[userId] || 0;
       const after = before - data.matchedAmount + payout;
       return { userId, name: data.name, before, after, bets: data.bets };
@@ -480,6 +481,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       nextBookedBets: [],
       nextTotalBookedAmount: 0,
       lastWinner: winningTeam,
+      preGameBalances: {},
     }));
   }, [getUserById, clearPendingBetsForGame, refundBet, recordGameSnapshot]);
 
