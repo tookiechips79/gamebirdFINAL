@@ -712,34 +712,40 @@ app.get('/api/users', async (req, res) => {
     
     const allUsers = await getAllUsers();
     
-    // Fetch credits for each user from database
+    // Fetch credits for each user — prefer DB transactions, fall back to gbUsersStore
     const users = await Promise.all(allUsers.map(async (u) => {
-      const userBalance = await getUserBalance(u.id);
-      const userObj = {
+      const dbBalance = await getUserBalance(u.id);
+      const memUser = gbUsersStore.find(m => m.id === u.id || m.name?.toLowerCase() === u.name?.toLowerCase());
+      const credits = dbBalance > 0 ? dbBalance : (memUser?.credits ?? 0);
+      return {
         id: u.id,
         name: u.name,
-        credits: userBalance || u.credits || 0,
+        credits,
         wins: u.wins || 0,
         losses: u.losses || 0,
         isAdmin: u.is_admin || false,
         membershipStatus: u.membership_status || u.membershipStatus || 'free',
         subscriptionDate: u.subscription_date || u.subscriptionDate
       };
-      
-      console.log(`✅ [USERS-GET] ${u.name} (${u.id}): credits=${userObj.credits}`);
-      return userObj;
     }));
-    
-    // Fall back to in-memory store if DB is empty
-    if (users.length === 0 && gbUsersStore.length > 0) {
-      console.log(`📋 [USERS] DB empty, returning ${gbUsersStore.length} users from memory`);
-      return res.json(gbUsersStore.map(u => ({
-        id: u.id, name: u.name, isAdmin: u.isAdmin || false,
+
+    // Merge in any gbUsersStore users not in DB
+    const dbIds = new Set(users.map(u => u.id));
+    const memOnly = gbUsersStore.filter(u => !u.isAdmin && !dbIds.has(u.id));
+    const merged = [
+      ...users,
+      ...memOnly.map(u => ({
+        id: u.id, name: u.name, credits: u.credits || 0, isAdmin: false,
         membershipStatus: u.membership?.tier === 'premium' && !u.membership?.cancelledAt ? 'premium' : 'free',
-      })));
+      }))
+    ];
+
+    if (merged.length === 0) {
+      console.log(`📋 [USERS] No users found anywhere`);
+      return res.json([]);
     }
-    console.log(`📋 [USERS] Returning ${users.length} users with verified credits`);
-    res.json(users);
+    console.log(`📋 [USERS] Returning ${merged.length} users (${users.length} DB + ${memOnly.length} memory-only)`);
+    res.json(merged);
   } catch (error) {
     console.error(`❌ [USERS-GET] Error fetching users:`, error);
     res.status(500).json({ error: 'Failed to fetch users' });
