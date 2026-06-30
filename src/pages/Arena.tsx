@@ -15,19 +15,17 @@ import CoinAuditLog from '@/components/admin/CoinAuditLog';
 
 export default function Arena() {
   const { game, declareWinner, isAdmin, setIsAdmin, resetQueues, updateGame } = useGame();
-  const { users, currentUser, coinAuditLog, requestAllUsers, mergeServerUsers } = useUser();
+  const { users, currentUser, coinAuditLog, mergeServerUsers, requestAllUsers } = useUser();
   const [fetchingData, setFetchingData] = useState(false);
 
   const fetchDataFromDb = () => {
-    const serverUrl = window.location.hostname === 'localhost'
-      ? 'http://localhost:3001'
-      : 'https://gamebird-app-production.up.railway.app';
+    const serverUrl = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://gamebird-app-production.up.railway.app';
     setFetchingData(true);
     requestAllUsers();
     setTimeout(() => {
       fetch(`${serverUrl}/api/users`)
         .then(r => r.json())
-        .then((serverUsers: any[]) => mergeServerUsers(serverUsers))
+        .then((su: any[]) => mergeServerUsers(su))
         .catch(() => {})
         .finally(() => setFetchingData(false));
     }, 1000);
@@ -173,12 +171,7 @@ export default function Arena() {
         <CoinsInAction />
         <GameDescription hideAdminControls />
         <WalletWidget />
-        <button
-          onClick={fetchDataFromDb}
-          disabled={fetchingData}
-          className="w-full py-2 text-xs mono font-black tracking-widest"
-          style={{ background: 'none', border: '1px solid rgba(0,229,255,0.3)', color: fetchingData ? 'rgba(0,229,255,0.4)' : 'var(--cyan)', cursor: fetchingData ? 'default' : 'pointer', borderRadius: 4 }}
-        >
+        <button onClick={fetchDataFromDb} disabled={fetchingData} className="w-full py-2 text-xs mono font-black tracking-widest" style={{ background: 'none', border: '1px solid rgba(0,229,255,0.3)', color: fetchingData ? 'rgba(0,229,255,0.4)' : 'var(--cyan)', cursor: fetchingData ? 'default' : 'pointer', borderRadius: 4 }}>
           {fetchingData ? '⟳ FETCHING...' : '⟳ FETCH DATA'}
         </button>
         <PlayerBank />

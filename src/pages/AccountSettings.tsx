@@ -7,29 +7,23 @@ import { User } from '@/types';
 
 function MembershipTab({ currentUser, navigate }: { currentUser: User; navigate: (p: string) => void }) {
   const { setCurrentUser, requestAllUsers, mergeServerUsers } = useUser();
+  const { isAdmin, setIsAdmin } = useGame();
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
 
   const fetchFromDb = () => {
-    const serverUrl = window.location.hostname === 'localhost'
-      ? 'http://localhost:3001'
-      : 'https://gamebird-app-production.up.railway.app';
-    setSyncing(true);
-    setSyncMsg('');
+    const serverUrl = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://gamebird-app-production.up.railway.app';
+    setSyncing(true); setSyncMsg('');
     requestAllUsers();
     setTimeout(() => {
       fetch(`${serverUrl}/api/users`)
         .then(r => r.json())
-        .then((serverUsers: any[]) => {
-          mergeServerUsers(serverUsers);
-          setSyncMsg(`✓ Synced — ${serverUsers.filter((u: any) => !u.isAdmin).length} users loaded`);
-        })
+        .then((su: any[]) => { mergeServerUsers(su); setSyncMsg(`✓ Synced — ${su.filter((u: any) => !u.isAdmin).length} users loaded`); })
         .catch(() => setSyncMsg('Sync failed — try again'))
         .finally(() => setSyncing(false));
     }, 1000);
   };
-  const { isAdmin, setIsAdmin } = useGame();
-  const [confirmCancel, setConfirmCancel] = useState(false);
 
   const mem = currentUser.membership;
   const isPremium = mem?.tier === 'premium' && !mem.cancelledAt;
@@ -154,12 +148,7 @@ function MembershipTab({ currentUser, navigate }: { currentUser: User; navigate:
         ))}
       </div>
 
-      <button
-        className="btn btn-ghost w-full py-2.5 text-sm font-black tracking-widest"
-        style={{ border: '1px solid var(--cyan)', color: 'var(--cyan)', opacity: syncing ? 0.5 : 1 }}
-        onClick={fetchFromDb}
-        disabled={syncing}
-      >
+      <button onClick={fetchFromDb} disabled={syncing} className="btn btn-ghost w-full py-2.5 text-sm font-black tracking-widest" style={{ border: '1px solid var(--cyan)', color: 'var(--cyan)', opacity: syncing ? 0.5 : 1 }}>
         {syncing ? '⟳ FETCHING...' : '⟳ FETCH DATA'}
       </button>
       {syncMsg && <div className="text-xs mono text-center" style={{ color: 'var(--green)' }}>{syncMsg}</div>}

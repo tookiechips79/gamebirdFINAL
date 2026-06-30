@@ -420,42 +420,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   // Derive currentUser from ID so it's always in sync with latest users
   const currentUser = users.find(u => u.id === currentUserId) ?? null;
+  const fetchAndMergeFromServer = () => {
+    fetch(`${SERVER_URL}/api/users`)
+      .then(r => r.json())
+      .then((serverUsers: any[]) => { if (Array.isArray(serverUsers) && serverUsers.length > 0) mergeServerUsers(serverUsers); })
+      .catch(() => {});
+  };
+
   const setCurrentUser = (user: User | null) => {
     setCurrentUserId(user?.id ?? null);
     if (user) {
       usersRef.current = usersRef.current.map(u => u.id === user.id ? { ...u, online: true } : u);
       setUsersAndEmit(prev => prev.map(u => u.id === user.id ? { ...u, online: true } : u));
-      // Join personal socket room for targeted notifications
       socketRef.current?.emit('user-login', { id: user.id, name: user.name, credits: user.credits, isAdmin: user.isAdmin || false });
-      // Fetch full user list from DB via HTTP and merge into local state
-      const serverUrl = window.location.hostname === 'localhost'
-        ? 'http://localhost:3001'
-        : 'https://gamebird-app-production.up.railway.app';
-      fetch(`${serverUrl}/api/users`)
-        .then(r => r.json())
-        .then((serverUsers: any[]) => {
-          if (!Array.isArray(serverUsers) || serverUsers.length === 0) return;
-          suppressEmitRef.current = true;
-          const merged = [...usersRef.current];
-          serverUsers.forEach(su => {
-            const idx = merged.findIndex(m => m.id === su.id);
-            if (idx === -1) {
-              // New user not in local — add them
-              merged.push({ id: su.id, name: su.name, credits: su.credits || 0, isAdmin: su.isAdmin || false,
-                membership: su.membershipStatus === 'premium' ? { tier: 'premium', startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 } : undefined,
-                pendingBets: [] });
-            } else {
-              // Sync membership status from DB
-              if (su.membershipStatus === 'premium' && merged[idx].membership?.tier !== 'premium') {
-                merged[idx] = { ...merged[idx], membership: { tier: 'premium', startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 } };
-              }
-            }
-          });
-          usersRef.current = merged;
-          setUsers(merged);
-          suppressEmitRef.current = false;
-        })
-        .catch(() => {});
+      // Auto-fetch all users from DB on login
+      setTimeout(fetchAndMergeFromServer, 500);
     }
   };
 
@@ -696,6 +675,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setUsers(merged);
     suppressEmitRef.current = false;
   };
+
+  // Auto-refresh from server every 30s when a user is logged in
+  useEffect(() => {
+    if (!currentUserId) return;
+    const interval = setInterval(fetchAndMergeFromServer, 30000);
+    return () => clearInterval(interval);
+  }, [currentUserId]);
 
   return (
     <UserContext.Provider value={{ users, currentUser, setCurrentUser, addUser, setPin, renameUser, deleteUser, getUserById, deductCredits, addCredits, refundBet, recordTip, clearPendingBetsForGame, updateMembership, coinAuditLog, acknowledgeAudit, clearAuditLog, gameSnapshots, clearSnapshots, recordGameSnapshot, adminAuditLog, clearAdminAudit, transferCredits, challenges, createChallenge, acceptChallenge, cancelChallenge, payoutChallenge, requestAllUsers, mergeServerUsers }}>

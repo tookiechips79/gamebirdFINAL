@@ -24,7 +24,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 
 export default function AdminArena() {
   const { game, declareWinner, isAdmin, setIsAdmin, resetQueues, updateGame } = useGame();
-  const { users, currentUser, coinAuditLog, requestAllUsers, mergeServerUsers } = useUser();
+  const { users, currentUser, coinAuditLog, mergeServerUsers, requestAllUsers } = useUser();
   const [fetchingUsers, setFetchingUsers] = React.useState(false);
 
   const fetchUsersFromDb = () => {
