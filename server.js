@@ -1179,18 +1179,27 @@ io.on('connection', (socket) => {
     // Upsert into DB so /api/users counter stays accurate
     upsertUserFromSocket(userData.id, userData.name, userData.isAdmin || false).catch(() => {});
 
-    // Send full known user list back to this client so all devices stay in sync
+    // Fetch full user list from DB and send to this client
     try {
       const dbUsers = await getAllUsers();
-      const allKnown = [...gbUsersStore];
-      dbUsers.forEach(du => {
-        if (!du.is_admin && !allKnown.find(u => u.id === du.id)) {
-          allKnown.push({ id: du.id, name: du.name, credits: 0, isAdmin: false,
-            membership: du.membership_status === 'premium' ? { tier: 'premium', startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 } : undefined,
-            pendingBets: [] });
-        }
-      });
-      if (allKnown.length > 0) socket.emit('users:state', allKnown);
+      const hydrated = await Promise.all(dbUsers.map(async du => {
+        const balance = await getUserBalance(du.id);
+        // Find matching local user from gbUsersStore to preserve pin, pendingBets etc.
+        const local = gbUsersStore.find(u => u.id === du.id);
+        return {
+          ...(local || {}),
+          id: du.id,
+          name: du.name,
+          isAdmin: du.is_admin || false,
+          credits: balance || local?.credits || 0,
+          membership: du.membership_status === 'premium'
+            ? { tier: 'premium', startDate: local?.membership?.startDate || Date.now(), renewsAt: local?.membership?.renewsAt || Date.now() + 365*24*60*60*1000 }
+            : (local?.membership?.cancelledAt ? local.membership : undefined),
+          pendingBets: local?.pendingBets || [],
+        };
+      }));
+      if (hydrated.length > 0) socket.emit('users:state', hydrated);
+      else if (gbUsersStore.length > 0) socket.emit('users:state', gbUsersStore);
     } catch(e) {
       if (gbUsersStore.length > 0) socket.emit('users:state', gbUsersStore);
     }
