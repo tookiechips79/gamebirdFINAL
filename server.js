@@ -1292,7 +1292,7 @@ io.on('connection', (socket) => {
           id: du.id,
           name: du.name,
           isAdmin: du.is_admin || false,
-          credits: balance || local?.credits || 0,
+          credits: balance, // DB is always authoritative — never fall back to stale local
           membership: du.membership_status === 'premium'
             ? { tier: 'premium', startDate: local?.membership?.startDate || Date.now(), renewsAt: local?.membership?.renewsAt || Date.now() + 365*24*60*60*1000 }
             : (local?.membership?.cancelledAt ? local.membership : undefined),
