@@ -13,6 +13,7 @@ function appendTx(user: User, tx: Transaction): User {
 interface UserContextType {
   users: User[];
   currentUser: User | null;
+  currentUserId: string | null;
   setCurrentUser: (user: User | null) => void;
   addUser: (name: string, isAdmin?: boolean, initialCredits?: number, pin?: string, referredBy?: string) => User;
   setPin: (userId: string, pin: string) => void;
@@ -748,7 +749,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [currentUserId]);
 
   return (
-    <UserContext.Provider value={{ users, currentUser, setCurrentUser, addUser, setPin, renameUser, deleteUser, getUserById, deductCredits, addCredits, refundBet, recordTip, clearPendingBetsForGame, updateMembership, coinAuditLog, acknowledgeAudit, clearAuditLog, gameSnapshots, clearSnapshots, recordGameSnapshot, adminAuditLog, clearAdminAudit, transferCredits, challenges, createChallenge, acceptChallenge, cancelChallenge, payoutChallenge, requestAllUsers, mergeServerUsers }}>
+    <UserContext.Provider value={{ users, currentUser, currentUserId, setCurrentUser, addUser, setPin, renameUser, deleteUser, getUserById, deductCredits, addCredits, refundBet, recordTip, clearPendingBetsForGame, updateMembership, coinAuditLog, acknowledgeAudit, clearAuditLog, gameSnapshots, clearSnapshots, recordGameSnapshot, adminAuditLog, clearAdminAudit, transferCredits, challenges, createChallenge, acceptChallenge, cancelChallenge, payoutChallenge, requestAllUsers, mergeServerUsers }}>
       {children}
     </UserContext.Provider>
 

@@ -48,6 +48,7 @@ const defaultGame: GameState = {
   nextTotalBookedAmount: 0,
   betCounter: 1,
   gameDescription: '',
+  gameType: '',
   timerStartedAt: null,
   timerElapsedMs: 0,
   isTimerRunning: false,

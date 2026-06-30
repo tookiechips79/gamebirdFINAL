@@ -25,6 +25,7 @@ function formatDescription(m: Metadata): string {
 
 export default function GameDescription({ hideAdminControls }: { hideAdminControls?: boolean }) {
   const { game, isAdmin: isAdminCtx, updateGame } = useGame();
+  const gameType = game.gameType || '';
   const isAdmin = isAdminCtx && !hideAdminControls;
   const description = game.gameDescription || '';
   const [editing, setEditing] = useState(false);
@@ -33,13 +34,15 @@ export default function GameDescription({ hideAdminControls }: { hideAdminContro
   const animRef = useRef<number>(0);
 
   const handleEdit = () => {
-    // Pre-fill fields from current description (best-effort, stored as formatted string)
     setMeta(empty);
+    setGameTypeInput(gameType);
     setEditing(true);
   };
 
+  const [gameTypeInput, setGameTypeInput] = useState('');
+
   const handleSave = () => {
-    updateGame({ gameDescription: formatDescription(meta) });
+    updateGame({ gameDescription: formatDescription(meta), gameType: gameTypeInput });
     setEditing(false);
   };
 
@@ -118,16 +121,29 @@ export default function GameDescription({ hideAdminControls }: { hideAdminContro
               ))}
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <span className="text-xs mono tracking-widest uppercase" style={{ color: 'var(--text-dim)' }}>Location</span>
-              <input
-                className="bg-transparent border border-[var(--border)] px-3 py-2 text-sm mono outline-none focus:border-[var(--cyan)]"
-                style={{ color: 'var(--text)' }}
-                placeholder="Location"
-                value={meta.location}
-                onChange={e => setMeta(p => ({ ...p, location: e.target.value }))}
-                onKeyDown={e => e.key === 'Enter' && handleSave()}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs mono tracking-widest uppercase" style={{ color: 'var(--text-dim)' }}>Location</span>
+                <input
+                  className="bg-transparent border border-[var(--border)] px-3 py-2 text-sm mono outline-none focus:border-[var(--cyan)]"
+                  style={{ color: 'var(--text)' }}
+                  placeholder="Location"
+                  value={meta.location}
+                  onChange={e => setMeta(p => ({ ...p, location: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && handleSave()}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs mono tracking-widest uppercase" style={{ color: 'var(--text-dim)' }}>Game Type</span>
+                <input
+                  className="bg-transparent border border-[var(--border)] px-3 py-2 text-sm mono outline-none focus:border-[var(--gold)]"
+                  style={{ color: 'var(--gold)' }}
+                  placeholder="e.g. 1 Pocket"
+                  value={gameTypeInput}
+                  onChange={e => setGameTypeInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSave()}
+                />
+              </div>
             </div>
 
             <div className="flex gap-2 justify-end pt-2 border-t border-[var(--border)]">

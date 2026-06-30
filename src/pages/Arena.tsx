@@ -15,7 +15,7 @@ import CoinAuditLog from '@/components/admin/CoinAuditLog';
 
 export default function Arena() {
   const { game, declareWinner, isAdmin, setIsAdmin, resetQueues, updateGame } = useGame();
-  const { users, currentUser, coinAuditLog, mergeServerUsers, requestAllUsers } = useUser();
+  const { users, currentUser, currentUserId, coinAuditLog, mergeServerUsers, requestAllUsers } = useUser();
   const [fetchingData, setFetchingData] = useState(false);
 
   const fetchDataFromDb = () => {
@@ -31,7 +31,8 @@ export default function Arena() {
     }, 1000);
   };
 
-  if (!currentUser && !isAdmin) return <Navigate to="/login" replace />;
+  // Allow a stored session ID to pass even if users haven't re-hydrated yet
+  if (!currentUser && !isAdmin && !currentUserId) return <Navigate to="/login" replace />;
   const totalAllCoins = users.filter(u => !u.isAdmin).reduce((s, u) => s + u.credits, 0);
   const [winFlash, setWinFlash] = useState<'A' | 'B' | null>(null);
   const [showUserManager, setShowUserManager] = useState(false);

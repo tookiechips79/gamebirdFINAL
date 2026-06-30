@@ -124,6 +124,7 @@ export interface GameState {
   nextTotalBookedAmount: number;
   betCounter: number;
   gameDescription: string;
+  gameType: string;
   timerStartedAt: number | null;
   timerElapsedMs: number;
   isTimerRunning: boolean;

@@ -146,8 +146,22 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
       {/* Description ticker at top */}
       <DescriptionTicker />
       {/* Top bar */}
-      <div className="flex items-center justify-center px-4 py-1.5 border-b border-[var(--border)]">
+      <div className="flex items-center justify-between px-4 py-1.5 border-b border-[var(--border)]">
+        <div className="flex items-center gap-2">
+          <span className="mono text-xs font-black tracking-widest" style={{ color: 'var(--gold)' }}>
+            GAME #{currentGameNumber}
+          </span>
+          {game.gameType && (
+            <>
+              <span style={{ color: 'var(--border)' }}>◆</span>
+              <span className="mono text-xs font-black tracking-widest uppercase" style={{ color: 'var(--gold)' }}>
+                {game.gameType}
+              </span>
+            </>
+          )}
+        </div>
         <TimerDisplay />
+        <div style={{ minWidth: 60 }} />
       </div>
 
       {/* ── DESKTOP layout (original, untouched) ── */}
