@@ -24,7 +24,33 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 
 export default function AdminArena() {
   const { game, declareWinner, isAdmin, setIsAdmin, resetQueues, updateGame } = useGame();
-  const { users, currentUser, coinAuditLog } = useUser();
+  const { users, currentUser, coinAuditLog, requestAllUsers, addUser, updateMembership } = useUser();
+  const [fetchingUsers, setFetchingUsers] = React.useState(false);
+
+  const fetchUsersFromDb = () => {
+    const serverUrl = window.location.hostname === 'localhost'
+      ? 'http://localhost:3001'
+      : 'https://gamebird-app-production.up.railway.app';
+    setFetchingUsers(true);
+    requestAllUsers();
+    setTimeout(() => {
+      fetch(`${serverUrl}/api/users`)
+        .then(r => r.json())
+        .then((serverUsers: any[]) => {
+          serverUsers.forEach(su => {
+            if (su.isAdmin) return;
+            const exists = users.find(u => u.id === su.id || u.name.toLowerCase() === su.name.toLowerCase());
+            if (!exists) addUser(su.name, false, su.credits || 0);
+            if (su.membershipStatus === 'premium' && exists) {
+              const already = exists.membership?.tier === 'premium' && !exists.membership?.cancelledAt;
+              if (!already) updateMembership(exists.id, { tier: 'premium', startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 });
+            }
+          });
+        })
+        .catch(() => {})
+        .finally(() => setFetchingUsers(false));
+    }, 1000);
+  };
   const navigate = useNavigate();
 
   const [winFlash, setWinFlash] = useState<'A' | 'B' | null>(null);
@@ -66,16 +92,26 @@ export default function AdminArena() {
         {/* Header row */}
         <div className="flex items-center justify-between px-3 py-1 border-b" style={{ borderColor: 'rgba(255,215,0,0.15)' }}>
           <span className="mono text-xs font-black tracking-widest" style={{ color: 'var(--gold)' }}>⚙ ADMIN</span>
-          <span className="mono text-xs" style={{ color: 'var(--text-dim)' }}>
-            {totalAllCoins.toLocaleString()} <span style={{ color: 'rgba(255,215,0,0.5)' }}>coins</span>
-          </span>
-          <button
-            className="btn px-2 py-1 text-xs font-black tracking-widest"
-            style={{ color: 'var(--red)', border: '1px solid var(--red)' }}
-            onClick={() => { setIsAdmin(false); navigate('/arena'); }}
-          >
-            EXIT
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="mono text-xs" style={{ color: 'var(--text-dim)' }}>
+              {totalAllCoins.toLocaleString()} <span style={{ color: 'rgba(255,215,0,0.5)' }}>coins</span>
+            </span>
+            <button
+              className="btn px-2 py-1 text-xs font-black tracking-widest"
+              style={{ color: 'var(--cyan)', border: '1px solid var(--cyan)', opacity: fetchingUsers ? 0.5 : 1 }}
+              onClick={fetchUsersFromDb}
+              disabled={fetchingUsers}
+            >
+              {fetchingUsers ? '⟳' : '⟳ FETCH USERS'}
+            </button>
+            <button
+              className="btn px-2 py-1 text-xs font-black tracking-widest"
+              style={{ color: 'var(--red)', border: '1px solid var(--red)' }}
+              onClick={() => { setIsAdmin(false); navigate('/arena'); }}
+            >
+              EXIT
+            </button>
+          </div>
         </div>
 
         {/* Controls — stacked on mobile, 4-col on desktop */}
