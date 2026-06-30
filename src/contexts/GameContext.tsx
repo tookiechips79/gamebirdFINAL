@@ -153,6 +153,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const { getUserById, deductCredits, clearPendingBetsForGame, refundBet, recordGameSnapshot } = useUser();
 
   const gameRef = useRef(game);
+  useEffect(() => { gameRef.current = game; }, [game]);
 
   // Socket.io — real-time sync
   const socketRef = useRef<Socket | null>(null);
@@ -215,12 +216,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // Wraps setGame: every state mutation also broadcasts to other clients
   const setGameAndEmit = useCallback((updater: GameState | ((prev: GameState) => GameState)) => {
-    const next = typeof updater === 'function' ? updater(gameRef.current) : updater;
-    gameRef.current = next; // update synchronously so rapid calls always read latest state
-    if (!suppressEmitRef.current && socketRef.current?.connected) {
-      socketRef.current.emit('gb:state', { ...next, arenaId: 'default' });
-    }
-    setGame(next);
+    setGame(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      gameRef.current = next;
+      if (!suppressEmitRef.current && socketRef.current?.connected) {
+        socketRef.current.emit('gb:state', { ...next, arenaId: 'default' });
+      }
+      return next;
+    });
   }, []);
 
   const updateGame = useCallback((updates: Partial<GameState>) => {
