@@ -380,6 +380,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
       snapMap[bb.userIdB].bets.push({ opponentName: bb.userNameA, amount: bb.amount, won: !aWon });
     }
 
+    // Build payoutMap from matched bets only (winner gets 2x per booked bet)
+    const payoutMap: Record<string, number> = {};
+    for (const bb of g.bookedBets) {
+      const winnerId = winningTeam === 'A' ? bb.userIdA : bb.userIdB;
+      payoutMap[winnerId] = (payoutMap[winnerId] || 0) + bb.amount * 2;
+    }
+
     // before = current credits + matched bets (bets were already deducted)
     // after  = before - matched bets + payout (computed directly — no timing dependency)
     const afterPlayers = Object.entries(snapMap).map(([userId, data]) => {
