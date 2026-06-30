@@ -62,28 +62,10 @@
     <script type="module" src="/src/main.tsx"></script>
 
     <script>
-
+      // Unregister any previously installed service workers — they caused stale JS caching
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.getRegistrations().then((registrations) => {
-            for (let reg of registrations) {
-              console.log('🧹 Unregistering old SW:', reg.scope);
-              reg.unregister();
-            }
-            navigator.serviceWorker.register('/sw.js?v=' + Date.now())
-              .then((registration) => {
-                console.log('✅ SW registered (fresh):', registration.scope);
-                setInterval(() => { registration.update(); }, 5000);
-              })
-              .catch((err) => { console.error('❌ SW registration failed:', err); });
-          });
-        });
-        document.addEventListener('visibilitychange', () => {
-          if (document.visibilityState === 'visible') {
-            navigator.serviceWorker.getRegistrations().then((registrations) => {
-              for (let reg of registrations) reg.update();
-            });
-          }
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          for (const reg of regs) reg.unregister();
         });
       }
     </script>
