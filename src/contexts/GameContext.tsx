@@ -53,7 +53,6 @@ const defaultGame: GameState = {
   timerElapsedMs: 0,
   isTimerRunning: false,
   lastWinner: null,
-  preGameBalances: {},
 };
 
 function loadGame(): GameState {
@@ -155,8 +154,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const gameRef = useRef(game);
   useEffect(() => { gameRef.current = game; }, [game]);
-  // Pre-game balances captured at first bet per user — local ref, never affected by socket updates
-  const preGameBalancesRef = useRef<Record<string, number>>({});
 
   // Socket.io — real-time sync
   const socketRef = useRef<Socket | null>(null);
@@ -289,11 +286,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
       timestamp: Date.now(),
     };
 
-    // Capture balance BEFORE deduction — only on first bet per user per game
-    if (!(userId in preGameBalancesRef.current)) {
-      preGameBalancesRef.current[userId] = user.credits;
-    }
-
     // Deduct immediately (pending bet system)
     const ok = deductCredits(userId, amount, { id: betId, gameNumber, amount, teamSide });
     if (!ok) return false;
@@ -396,8 +388,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
       payoutMap[winnerId] = (payoutMap[winnerId] || 0) + bb.amount * 2;
     }
 
+    // before = credits + pendingBets for this game (pendingBets are keyed by unique betId — no duplicates possible)
+    // after  = before - matchedAmount + payout
     const afterPlayers = Object.entries(snapMap).map(([userId, data]) => {
-      const before = preGameBalancesRef.current[userId] ?? 0;
+      const u = getUserById(userId);
+      const gamePending = (u?.pendingBets ?? [])
+        .filter(b => b.gameNumber === g.currentGameNumber)
+        .reduce((s, b) => s + b.amount, 0);
+      const before = (u?.credits ?? 0) + gamePending;
       const payout = payoutMap[userId] || 0;
       const after = before - data.matchedAmount + payout;
       return { userId, name: data.name, before, after, bets: data.bets };
@@ -479,9 +477,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       nextBookedBets: [],
       nextTotalBookedAmount: 0,
       lastWinner: winningTeam,
-      preGameBalances: {},
     }));
-    preGameBalancesRef.current = {};
   }, [getUserById, clearPendingBetsForGame, refundBet, recordGameSnapshot]);
 
   const clearHistory = useCallback(() => {
