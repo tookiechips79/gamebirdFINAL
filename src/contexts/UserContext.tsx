@@ -735,9 +735,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
           membership: isPremium ? premiumMembership : undefined,
         });
       } else {
+        // Never overwrite credits for a user with pending bets — client deductions
+        // are always ahead of DB (bets deduct client-side first, then async to DB)
+        const hasPendingBets = (merged[idx].pendingBets ?? []).length > 0;
         merged[idx] = {
           ...merged[idx],
-          credits: su.credits ?? merged[idx].credits,
+          credits: hasPendingBets ? merged[idx].credits : (su.credits ?? merged[idx].credits),
           // DB is authoritative for membership — always trust server status
           membership: isPremium ? (merged[idx].membership?.tier === 'premium' && !merged[idx].membership?.cancelledAt ? merged[idx].membership : premiumMembership) : undefined,
         };
