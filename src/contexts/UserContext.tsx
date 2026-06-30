@@ -674,16 +674,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
     serverUsers.forEach(su => {
       if (su.isAdmin) return;
       const idx = merged.findIndex(m => m.id === su.id);
+      const isPremium = su.membershipStatus === 'premium';
+      const premiumMembership = { tier: 'premium' as const, startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 };
       if (idx === -1) {
         merged.push({
           id: su.id, name: su.name, credits: su.credits || 0,
           isAdmin: false, pendingBets: [],
-          membership: su.membershipStatus === 'premium'
-            ? { tier: 'premium', startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 }
-            : undefined,
+          membership: isPremium ? premiumMembership : undefined,
         });
-      } else if (su.membershipStatus === 'premium' && !(merged[idx].membership?.tier === 'premium' && !merged[idx].membership?.cancelledAt)) {
-        merged[idx] = { ...merged[idx], membership: { tier: 'premium', startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 } };
+      } else {
+        merged[idx] = {
+          ...merged[idx],
+          credits: su.credits ?? merged[idx].credits,
+          membership: isPremium && !(merged[idx].membership?.tier === 'premium' && !merged[idx].membership?.cancelledAt)
+            ? premiumMembership
+            : merged[idx].membership,
+        };
       }
     });
     usersRef.current = merged;
