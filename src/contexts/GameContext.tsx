@@ -385,10 +385,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
       payoutMap[winnerId] = (payoutMap[winnerId] || 0) + bb.amount * 2;
     }
 
-    // before = preBalances (credits + all queue bets, already computed above)
+    // before = credits + pendingBets for this game (pendingBets are keyed by unique betId — no duplicates possible)
     // after  = before - matchedAmount + payout
     const afterPlayers = Object.entries(snapMap).map(([userId, data]) => {
-      const before = preBalances[userId] ?? 0;
+      const u = getUserById(userId);
+      const gamePending = (u?.pendingBets ?? [])
+        .filter(b => b.gameNumber === g.currentGameNumber)
+        .reduce((s, b) => s + b.amount, 0);
+      const before = (u?.credits ?? 0) + gamePending;
       const payout = payoutMap[userId] || 0;
       const after = before - data.matchedAmount + payout;
       return { userId, name: data.name, before, after, bets: data.bets };
