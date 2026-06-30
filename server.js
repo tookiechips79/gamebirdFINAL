@@ -960,6 +960,8 @@ app.delete('/api/users/:userId', async (req, res) => {
     await deleteUser(userId);
     deletedUserIds.add(userId);
     gbUsersStore = gbUsersStore.filter(u => u.id !== userId);
+    // Tell every connected client to remove this user immediately
+    io.emit('user:deleted', userId);
     console.log(`✅ [USER-DELETE] ${userId} deleted`);
     res.json({ success: true });
   } catch (error) {

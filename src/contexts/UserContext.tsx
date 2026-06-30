@@ -129,6 +129,7 @@ function loadUsers(): User[] {
 export function UserProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>(loadUsers);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const serverDeletedIdsRef = useRef<Set<string>>(new Set());
   const [coinAuditLog, setCoinAuditLog] = useState<CoinAuditEntry[]>(loadAuditLog);
   const [gameSnapshots, setGameSnapshots] = useState<GameBalanceSnapshot[]>(loadSnapshots);
   const snapshotsRef = useRef(gameSnapshots);
@@ -380,11 +381,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     // Server asks all clients to re-push their user list (triggered by admin opening User Manager)
     socket.on('users:push', () => {
-      if (usersRef.current.length > 0) {
-        socket.emit('users:update', usersRef.current);
-      }
-      // Also pull fresh data from DB so credit/membership changes propagate
+      const toEmit = usersRef.current.filter(u => !serverDeletedIdsRef.current.has(u.id));
+      if (toEmit.length > 0) socket.emit('users:update', toEmit);
       fetchAndMergeFromServer();
+    });
+
+    socket.on('user:deleted', (userId: string) => {
+      serverDeletedIdsRef.current.add(userId);
+      usersRef.current = usersRef.current.filter(u => u.id !== userId);
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      if (currentUserId === userId) setCurrentUserId(null);
     });
 
     socket.on('challenge:new', (challenge: Challenge) => {
@@ -665,6 +671,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const mergeServerUsers = (serverUsers: any[], deletedIds: string[] = []) => {
     suppressEmitRef.current = true;
     const deletedSet = new Set(deletedIds);
+    deletedIds.forEach(id => serverDeletedIdsRef.current.add(id));
     // Remove any locally cached users the server has marked as deleted
     let merged = usersRef.current.filter(u => !deletedSet.has(u.id));
     serverUsers.forEach(su => {
