@@ -528,12 +528,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const tx = makeTx(txType, Math.abs(amount), txDesc);
     const user = usersRef.current.find(u => u.id === userId);
     const balBefore = user?.credits ?? 0;
-    const actualDelta = user ? Math.max(0, user.credits + amount) - user.credits : amount;
+    const newBal = Math.max(0, balBefore + amount);
+    const actualDelta = newBal - balBefore;
     usersRef.current = usersRef.current.map(u =>
-      u.id !== userId ? u : appendTx({ ...u, credits: Math.max(0, u.credits + amount) }, tx)
+      u.id !== userId ? u : appendTx({ ...u, credits: newBal }, tx)
     );
     setUsersAndEmit(prev => prev.map(u =>
-      u.id !== userId ? u : appendTx({ ...u, credits: Math.max(0, u.credits + amount) }, tx)
+      u.id !== userId ? u : appendTx({ ...u, credits: newBal }, tx)
     ));
     setExpected(expectedTotalRef.current + actualDelta);
     if (user && amount !== 0) {
@@ -544,8 +545,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
         amount: Math.abs(actualDelta),
         userName: user.name,
         balanceBefore: balBefore,
-        balanceAfter: balBefore + actualDelta,
+        balanceAfter: newBal,
       });
+      // Persist to DB — use set endpoint so DB always matches local state
+      fetch(`${SERVER_URL}/api/credits/${userId}/set`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ balance: newBal }),
+      }).catch(() => {});
     }
   };
 

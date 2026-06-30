@@ -560,20 +560,38 @@ app.get('/api/credits/:userId/history', async (req, res) => {
 });
 
 // Add credits (admin only, or system operations)
+// Set absolute balance (used for ZERO and admin adjustments)
+app.post('/api/credits/:userId/set', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { balance } = req.body;
+    if (balance === undefined || balance === null) return res.status(400).json({ error: 'balance required' });
+    const currentBalance = await getUserBalance(userId);
+    const delta = balance - currentBalance;
+    if (delta !== 0) {
+      const type = delta > 0 ? 'admin_add' : 'admin_deduct';
+      await addTransaction(userId, type, delta, 'Admin balance adjustment');
+    }
+    io.emit('users:push');
+    res.json({ success: true, newBalance: balance });
+  } catch (error) {
+    console.error('❌ [CREDITS-SET]', error);
+    res.status(500).json({ error: 'Failed to set balance' });
+  }
+});
+
 app.post('/api/credits/:userId/add', async (req, res) => {
   try {
     const { userId } = req.params;
     const { amount, reason = '', adminNotes = '' } = req.body;
-    
-    if (!amount || amount <= 0) {
-      console.warn(`⚠️ [CREDITS-ADD] Invalid amount: ${amount}`);
+
+    if (!amount || amount === 0) {
       return res.status(400).json({ error: 'Invalid amount' });
     }
     
     const oldBalance = await getUserBalance(userId);
-    console.log(`💰 [CREDITS-ADD] Adding ${amount} to ${userId} (old balance: ${oldBalance}, reason: ${reason})`);
-    
-    const transaction = await addTransaction(userId, 'admin_add', amount, reason, adminNotes);
+    const type = amount > 0 ? 'admin_add' : 'admin_deduct';
+    const transaction = await addTransaction(userId, type, amount, reason || (amount > 0 ? 'Admin added credits' : 'Admin deducted credits'), adminNotes);
     
     if (!transaction) {
       console.warn(`⚠️ [CREDITS-ADD] Transaction failed for ${userId}`);
