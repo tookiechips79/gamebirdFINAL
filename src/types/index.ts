@@ -132,6 +132,12 @@ export interface GameState {
   lastWinner: 'A' | 'B' | null;
 }
 
+export interface SnapshotBet {
+  opponentName: string;
+  amount: number;
+  won: boolean;
+}
+
 export interface GameBalanceSnapshot {
   id: string;
   gameNumber: number;
@@ -139,7 +145,7 @@ export interface GameBalanceSnapshot {
   winningTeam: 'A' | 'B';
   totalBefore: number;
   totalAfter: number;
-  players: { userId: string; name: string; before: number; after: number }[];
+  players: { userId: string; name: string; before: number; after: number; bets: SnapshotBet[] }[];
 }
 
 export type AdminAuditEventType = 'admin_add' | 'admin_deduct' | 'user_created' | 'user_deleted' | 'reload' | 'tip';

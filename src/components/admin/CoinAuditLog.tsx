@@ -127,24 +127,51 @@ export default function CoinAuditLog({ onClose }: { onClose: () => void }) {
 
                         {isOpen && (
                           <div className="px-5 pb-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                            <div className="grid gap-1 mt-3" style={{ gridTemplateColumns: '1fr 80px 80px 70px' }}>
-                              <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>PLAYER</span>
-                              <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.3)' }}>BEFORE</span>
-                              <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.3)' }}>AFTER</span>
-                              <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.3)' }}>CHANGE</span>
+                            <div className="flex flex-col gap-3 mt-3">
+                              <div className="grid" style={{ gridTemplateColumns: '1fr 72px 72px 64px' }}>
+                                <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>PLAYER</span>
+                                <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>BEFORE</span>
+                                <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>AFTER</span>
+                                <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>NET</span>
+                              </div>
                               {snap.players.map(p => {
-                                const won = p.after - p.before;
+                                const net = p.after - p.before;
                                 return (
-                                  <React.Fragment key={p.userId}>
-                                    <span className="mono text-xs" style={{ color: 'var(--text)' }}>{p.name}</span>
-                                    <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.5)' }}>{p.before.toLocaleString()}</span>
-                                    <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.5)' }}>{p.after.toLocaleString()}</span>
-                                    <span className="mono text-xs font-black text-right" style={{ color: won > 0 ? 'var(--green)' : 'rgba(255,255,255,0.2)' }}>
-                                      {won > 0 ? `+${won}` : '—'}
-                                    </span>
-                                  </React.Fragment>
+                                  <div key={p.userId}>
+                                    {/* Player row */}
+                                    <div className="grid items-center" style={{ gridTemplateColumns: '1fr 72px 72px 64px' }}>
+                                      <span className="mono text-xs font-black" style={{ color: 'var(--text)' }}>{p.name}</span>
+                                      <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.4)' }}>{p.before.toLocaleString()}</span>
+                                      <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.4)' }}>{p.after.toLocaleString()}</span>
+                                      <span className="mono text-xs font-black text-right" style={{ color: net > 0 ? 'var(--green)' : net < 0 ? 'var(--red)' : 'rgba(255,255,255,0.2)' }}>
+                                        {net > 0 ? `+${net}` : net < 0 ? `${net}` : '—'}
+                                      </span>
+                                    </div>
+                                    {/* Bet sub-rows */}
+                                    {p.bets.map((b, i) => (
+                                      <div key={i} className="flex items-center gap-2 mt-1 pl-3" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+                                        <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>└</span>
+                                        <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                                          vs {b.opponentName}
+                                        </span>
+                                        <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>{b.amount} coins</span>
+                                        <span className="mono text-xs font-black" style={{ color: b.won ? 'var(--green)' : 'var(--red)' }}>
+                                          {b.won ? 'WON' : 'LOST'}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
                                 );
                               })}
+                              {/* Totals row */}
+                              <div className="grid items-center pt-2 border-t" style={{ gridTemplateColumns: '1fr 72px 72px 64px', borderColor: 'rgba(255,255,255,0.08)' }}>
+                                <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>TOTAL</span>
+                                <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.25)' }}>{snap.totalBefore.toLocaleString()}</span>
+                                <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.25)' }}>{snap.totalAfter.toLocaleString()}</span>
+                                <span className="mono text-xs font-black text-right" style={{ color: snap.totalAfter === snap.totalBefore ? 'var(--green)' : 'var(--red)' }}>
+                                  {snap.totalAfter === snap.totalBefore ? '✓ CLEAN' : `${snap.totalAfter - snap.totalBefore > 0 ? '+' : ''}${snap.totalAfter - snap.totalBefore}`}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         )}

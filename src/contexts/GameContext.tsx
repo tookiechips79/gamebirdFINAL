@@ -373,10 +373,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
       snapshotMap[bb.userIdA].totalBet += bb.amount;
       snapshotMap[bb.userIdB].totalBet += bb.amount;
     }
+    // Build per-player bet sub-rows
+    const playerBets: Record<string, { opponentName: string; amount: number; won: boolean }[]> = {};
+    for (const bb of g.bookedBets) {
+      const aWon = winningTeam === 'A';
+      if (!playerBets[bb.userIdA]) playerBets[bb.userIdA] = [];
+      if (!playerBets[bb.userIdB]) playerBets[bb.userIdB] = [];
+      playerBets[bb.userIdA].push({ opponentName: bb.userNameB, amount: bb.amount, won: aWon });
+      playerBets[bb.userIdB].push({ opponentName: bb.userNameA, amount: bb.amount, won: !aWon });
+    }
+
     const snapshotPlayers = Object.values(snapshotMap).map(p => {
       const u = getUserById(p.userId);
-      // before = current credits + all bets placed (since bets were already deducted)
-      return { userId: p.userId, name: p.name, before: (u?.credits ?? 0) + p.totalBet, after: 0 };
+      return { userId: p.userId, name: p.name, before: (u?.credits ?? 0) + p.totalBet, after: 0, bets: playerBets[p.userId] ?? [] };
     });
 
     clearPendingBetsForGame(g.currentGameNumber, payouts);
