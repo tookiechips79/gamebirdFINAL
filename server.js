@@ -1180,8 +1180,19 @@ io.on('connection', (socket) => {
     upsertUserFromSocket(userData.id, userData.name, userData.isAdmin || false).catch(() => {});
 
     // Send full known user list back to this client so all devices stay in sync
-    if (gbUsersStore.length > 0) {
-      socket.emit('users:state', gbUsersStore);
+    try {
+      const dbUsers = await getAllUsers();
+      const allKnown = [...gbUsersStore];
+      dbUsers.forEach(du => {
+        if (!du.is_admin && !allKnown.find(u => u.id === du.id)) {
+          allKnown.push({ id: du.id, name: du.name, credits: 0, isAdmin: false,
+            membership: du.membership_status === 'premium' ? { tier: 'premium', startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 } : undefined,
+            pendingBets: [] });
+        }
+      });
+      if (allKnown.length > 0) socket.emit('users:state', allKnown);
+    } catch(e) {
+      if (gbUsersStore.length > 0) socket.emit('users:state', gbUsersStore);
     }
 
     // Broadcast updated connected users coins to all clients
