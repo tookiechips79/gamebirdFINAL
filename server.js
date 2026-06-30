@@ -733,15 +733,13 @@ app.get('/api/users', async (req, res) => {
     
     const allUsers = await getAllUsers();
     
-    // Fetch credits for each user — prefer DB transactions, fall back to gbUsersStore
+    // DB is always authoritative for credits — never override with stale memory values
     const users = await Promise.all(allUsers.map(async (u) => {
       const dbBalance = await getUserBalance(u.id);
-      const memUser = gbUsersStore.find(m => m.id === u.id || m.name?.toLowerCase() === u.name?.toLowerCase());
-      const credits = dbBalance > 0 ? dbBalance : (memUser?.credits ?? 0);
       return {
         id: u.id,
         name: u.name,
-        credits,
+        credits: dbBalance,
         wins: u.wins || 0,
         losses: u.losses || 0,
         isAdmin: u.is_admin || false,
