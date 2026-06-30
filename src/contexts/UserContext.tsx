@@ -290,9 +290,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const expectedTotalRef = useRef<number>(totalWithPending(users));
   const initialSyncDoneRef = useRef(false);
-  // Settlement cooldown — suppress DB syncs for 4 seconds after game settlement
-  // so partial persistBalance calls don't overwrite correct client credits with stale DB values
-  const settlementCooldownUntilRef = useRef(0);
+  // Track users with in-flight persistBalance writes — suppress DB credit sync for those users
+  // for 3 seconds after a write fires, so a stale users:push can't overwrite the correct value
+  const recentlyPersistedRef = useRef<Map<string, number>>(new Map());
   // Always recompute on load so the expected is in sync with the current formula
   useEffect(() => {
     const t = totalWithPending(users);
@@ -535,6 +535,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   const persistBalance = (userId: string, balance: number) => {
+    // Mark this user as protected for 3s — stale users:push won't overwrite their credits
+    recentlyPersistedRef.current.set(userId, Date.now() + 3000);
     fetch(`${SERVER_URL}/api/credits/${userId}/set`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ balance }),
@@ -682,8 +684,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const next = usersRef.current.map(update);
     usersRef.current = next;
     setUsersAndEmit(prev => prev.map(update));
-    // Block DB syncs for 4s so partial persistBalance responses don't overwrite correct credits
-    settlementCooldownUntilRef.current = Date.now() + 4000;
     // Persist ALL affected players (winners AND losers) so DB stays in sync
     next.forEach(u => { if (affectedIds.has(u.id)) persistBalance(u.id, u.credits); });
     checkDrift(`Game #${gameNumber} settled`, next);
@@ -735,31 +735,18 @@ export function UserProvider({ children }: { children: ReactNode }) {
           membership: isPremium ? premiumMembership : undefined,
         });
       } else {
-        // Never overwrite credits for a user with pending bets — client deductions
-        // are always ahead of DB (bets deduct client-side first, then async to DB)
-        const hasPendingBets = (merged[idx].pendingBets ?? []).length > 0;
+        // Skip credit update if we have an in-flight persistBalance for this user —
+        // the DB value is stale and would overwrite the correct client-side balance
+        const writeProtected = (recentlyPersistedRef.current.get(su.id) ?? 0) > Date.now();
         merged[idx] = {
           ...merged[idx],
-          credits: hasPendingBets ? merged[idx].credits : (su.credits ?? merged[idx].credits),
+          credits: writeProtected ? merged[idx].credits : (su.credits ?? merged[idx].credits),
           // DB is authoritative for membership — always trust server status
           membership: isPremium ? (merged[idx].membership?.tier === 'premium' && !merged[idx].membership?.cancelledAt ? merged[idx].membership : premiumMembership) : undefined,
         };
       }
     });
-    // During settlement cooldown, skip credit updates — DB may be partially written
-    // (some persistBalance calls completed, others haven't yet)
-    if (Date.now() < settlementCooldownUntilRef.current) {
-      // Only update non-credit fields (membership) — leave credits as-is
-      merged = usersRef.current.map(u => {
-        const su = serverUsers.find((s: any) => s.id === u.id);
-        if (!su) return u;
-        const isPremium = su.membershipStatus === 'premium';
-        const premiumMembership = { tier: 'premium' as const, startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 };
-        return { ...u, membership: isPremium ? (u.membership?.tier === 'premium' && !u.membership?.cancelledAt ? u.membership : premiumMembership) : undefined };
-      });
-    }
-
-    usersRef.current = merged;
+usersRef.current = merged;
     setUsers(merged);
     // On first server sync, reset expectedTotal to the authoritative DB total
     // to avoid false drift alerts from stale localStorage values
