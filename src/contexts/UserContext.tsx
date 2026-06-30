@@ -303,6 +303,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const expected = expectedTotalRef.current;
     const drift = actual - expected;
     if (drift === 0) return;
+    // Suppress duplicate alerts — if an unacknowledged entry already exists
+    // for this exact drift amount, don't flood the log with repeat entries
+    const alreadyLogged = auditLogRef.current.some(e => !e.acknowledged && e.drift === drift);
+    if (alreadyLogged) return;
     const entry: CoinAuditEntry = {
       id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       timestamp: Date.now(),
