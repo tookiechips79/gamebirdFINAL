@@ -365,31 +365,70 @@ export default function CoinAuditLog({ onClose }: { onClose: () => void }) {
                 </div>
               ) : (
                 <div className="flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                  {gameDriftRows.map(({ record, totalBefore, totalAfter, drift }) => (
-                    <div
-                      key={record.id}
-                      className="flex items-center justify-between px-5 py-3"
-                      style={{ background: drift !== 0 ? 'rgba(255,0,64,0.04)' : 'transparent' }}
-                    >
-                      <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="mono text-xs font-black" style={{ color: record.winningTeam === 'A' ? 'var(--cyan)' : 'var(--red)' }}>
-                            GAME #{record.gameNumber}
-                          </span>
-                          <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
-                            {new Date(record.timestamp).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="mono text-xs flex gap-4 mt-0.5">
-                          <span style={{ color: 'rgba(255,255,255,0.4)' }}>BEFORE <span style={{ color: 'var(--text)' }}>{totalBefore.toLocaleString()}</span></span>
-                          <span style={{ color: 'rgba(255,255,255,0.4)' }}>AFTER <span style={{ color: 'var(--text)' }}>{totalAfter.toLocaleString()}</span></span>
-                        </div>
+                  {gameDriftRows.map(({ record, totalBefore, totalAfter, drift }) => {
+                    const isOpen = expandedSnap === record.id;
+                    const snap = playerSnaps.find(s => s.gameNumber === record.gameNumber);
+                    return (
+                      <div key={record.id} style={{ background: drift !== 0 ? 'rgba(255,0,64,0.04)' : 'transparent' }}>
+                        <button
+                          className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-black transition-colors"
+                          onClick={() => setExpandedSnap(isOpen ? null : record.id)}
+                        >
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="mono text-xs font-black" style={{ color: record.winningTeam === 'A' ? 'var(--cyan)' : 'var(--red)' }}>
+                                GAME #{record.gameNumber}
+                              </span>
+                              <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                                {new Date(record.timestamp).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="mono text-xs flex gap-4 mt-0.5">
+                              <span style={{ color: 'rgba(255,255,255,0.4)' }}>BEFORE <span style={{ color: 'var(--text)' }}>{totalBefore.toLocaleString()}</span></span>
+                              <span style={{ color: 'rgba(255,255,255,0.4)' }}>AFTER <span style={{ color: 'var(--text)' }}>{totalAfter.toLocaleString()}</span></span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="mono text-sm font-black" style={{ color: drift === 0 ? 'var(--green)' : 'var(--red)' }}>
+                              {drift === 0 ? '✓ CLEAN' : `⚠ ${drift > 0 ? '+' : ''}${drift}`}
+                            </span>
+                            <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>{isOpen ? '▲' : '▼'}</span>
+                          </div>
+                        </button>
+                        {isOpen && (
+                          <div className="px-5 pb-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                            {snap ? (
+                              <div className="flex flex-col gap-2 mt-3">
+                                <div className="grid" style={{ gridTemplateColumns: '1fr 72px 72px 64px' }}>
+                                  <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>PLAYER</span>
+                                  <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>BEFORE</span>
+                                  <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>AFTER</span>
+                                  <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>NET</span>
+                                </div>
+                                {snap.players.map(p => {
+                                  const net = p.after - p.before;
+                                  return (
+                                    <div key={p.userId} className="grid items-center" style={{ gridTemplateColumns: '1fr 72px 72px 64px' }}>
+                                      <span className="mono text-xs font-black" style={{ color: 'var(--text)' }}>{p.name}</span>
+                                      <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.4)' }}>{p.before.toLocaleString()}</span>
+                                      <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.4)' }}>{p.after.toLocaleString()}</span>
+                                      <span className="mono text-xs font-black text-right" style={{ color: net > 0 ? 'var(--green)' : net < 0 ? 'var(--red)' : 'rgba(255,255,255,0.2)' }}>
+                                        {net > 0 ? `+${net}` : net < 0 ? `${net}` : '—'}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <p className="mono text-xs mt-3" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                                No player snapshot available for this game.
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <span className="mono text-sm font-black" style={{ color: drift === 0 ? 'var(--green)' : 'var(--red)' }}>
-                        {drift === 0 ? '✓ CLEAN' : `⚠ ${drift > 0 ? '+' : ''}${drift}`}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </>
