@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useUser } from '@/contexts/UserContext';
 import { useGame } from '@/contexts/GameContext';
 
@@ -340,13 +340,6 @@ export default function Login() {
           >
             ⚙ admin
           </button>
-        </div>
-
-        {/* Footer links */}
-        <div className="flex justify-center gap-4 mt-5 text-xs mono" style={{ color: 'var(--text-dim)' }}>
-          <Link to="/terms" style={{ color: 'var(--text-dim)', textDecoration: 'none' }} className="hover:text-[var(--cyan)] transition-colors">Terms</Link>
-          <Link to="/privacy" style={{ color: 'var(--text-dim)', textDecoration: 'none' }} className="hover:text-[var(--cyan)] transition-colors">Privacy</Link>
-          <Link to="/faq" style={{ color: 'var(--text-dim)', textDecoration: 'none' }} className="hover:text-[var(--cyan)] transition-colors">FAQ</Link>
         </div>
 
       </div>
