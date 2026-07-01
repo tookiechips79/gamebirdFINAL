@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
-import { User, PendingBet, Transaction, TransactionType, Membership, MembershipTier, CoinAuditEntry, GameBalanceSnapshot, AdminAuditEvent, AdminAuditEventType, Challenge } from '@/types';
+import { User, PendingBet, Transaction, TransactionType, Membership, MembershipTier, CoinAuditEntry, GameBalanceSnapshot, PlayerBalanceSnap, AdminAuditEvent, AdminAuditEventType, Challenge } from '@/types';
 import { io, Socket } from 'socket.io-client';
 
 function makeTx(type: TransactionType, amount: number, description: string): Transaction {
@@ -35,6 +35,9 @@ interface UserContextType {
   gameSnapshots: GameBalanceSnapshot[];
   clearSnapshots: () => void;
   recordGameSnapshot: (snap: GameBalanceSnapshot) => void;
+  playerSnaps: PlayerBalanceSnap[];
+  recordPlayerSnap: (snap: PlayerBalanceSnap) => void;
+  clearPlayerSnaps: () => void;
   adminAuditLog: AdminAuditEvent[];
   clearAdminAudit: () => void;
   challenges: Challenge[];
@@ -50,6 +53,7 @@ const STORAGE_KEY = 'gb_users';
 const AUDIT_KEY = 'gb_coin_audit';
 const EXPECTED_KEY = 'gb_expected_total';
 const SNAPSHOTS_KEY = 'gb_game_snapshots';
+const PLAYER_SNAPS_KEY = 'gb_player_snaps';
 const ADMIN_AUDIT_KEY = 'gb_admin_audit';
 const CHALLENGES_KEY = 'gb_challenges';
 
@@ -93,6 +97,14 @@ function loadSnapshots(): GameBalanceSnapshot[] {
 
 function saveSnapshots(snaps: GameBalanceSnapshot[]) {
   try { localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snaps)); } catch {}
+}
+
+function loadPlayerSnaps(): PlayerBalanceSnap[] {
+  try { const s = localStorage.getItem(PLAYER_SNAPS_KEY); if (s) return JSON.parse(s); } catch {}
+  return [];
+}
+function savePlayerSnaps(snaps: PlayerBalanceSnap[]) {
+  try { localStorage.setItem(PLAYER_SNAPS_KEY, JSON.stringify(snaps)); } catch {}
 }
 
 function loadAdminAudit(): AdminAuditEvent[] {
@@ -142,6 +154,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [gameSnapshots, setGameSnapshots] = useState<GameBalanceSnapshot[]>(loadSnapshots);
   const snapshotsRef = useRef(gameSnapshots);
   useEffect(() => { snapshotsRef.current = gameSnapshots; }, [gameSnapshots]);
+
+  const [playerSnaps, setPlayerSnaps] = useState<PlayerBalanceSnap[]>(loadPlayerSnaps);
+  const playerSnapsRef = useRef(playerSnaps);
+  useEffect(() => { playerSnapsRef.current = playerSnaps; }, [playerSnaps]);
 
   const [adminAuditLog, setAdminAuditLog] = useState<AdminAuditEvent[]>(loadAdminAudit);
   const adminAuditRef = useRef(adminAuditLog);
@@ -369,6 +385,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setGameSnapshots(next);
     saveSnapshots(next);
     serverPost('/api/audit/snapshots', snap);
+  };
+
+  const recordPlayerSnap = (snap: PlayerBalanceSnap) => {
+    const next = [snap, ...playerSnapsRef.current].slice(0, 200);
+    playerSnapsRef.current = next;
+    setPlayerSnaps(next);
+    savePlayerSnaps(next);
+  };
+
+  const clearPlayerSnaps = () => {
+    playerSnapsRef.current = [];
+    setPlayerSnaps([]);
+    localStorage.removeItem(PLAYER_SNAPS_KEY);
   };
 
   // Socket sync
@@ -785,7 +814,7 @@ usersRef.current = merged;
   }, [currentUserId]);
 
   return (
-    <UserContext.Provider value={{ users, currentUser, currentUserId, setCurrentUser, addUser, setPin, renameUser, deleteUser, getUserById, deductCredits, addCredits, refundBet, recordTip, clearPendingBetsForGame, updateMembership, coinAuditLog, acknowledgeAudit, clearAuditLog, gameSnapshots, clearSnapshots, recordGameSnapshot, adminAuditLog, clearAdminAudit, transferCredits, challenges, createChallenge, acceptChallenge, cancelChallenge, payoutChallenge, requestAllUsers, mergeServerUsers }}>
+    <UserContext.Provider value={{ users, currentUser, currentUserId, setCurrentUser, addUser, setPin, renameUser, deleteUser, getUserById, deductCredits, addCredits, refundBet, recordTip, clearPendingBetsForGame, updateMembership, coinAuditLog, acknowledgeAudit, clearAuditLog, gameSnapshots, clearSnapshots, recordGameSnapshot, playerSnaps, recordPlayerSnap, clearPlayerSnaps, adminAuditLog, clearAdminAudit, transferCredits, challenges, createChallenge, acceptChallenge, cancelChallenge, payoutChallenge, requestAllUsers, mergeServerUsers }}>
       {children}
     </UserContext.Provider>
 

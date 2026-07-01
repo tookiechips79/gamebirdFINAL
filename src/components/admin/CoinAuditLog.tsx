@@ -3,7 +3,7 @@ import { useUser } from '@/contexts/UserContext';
 import { useGame } from '@/contexts/GameContext';
 import { AdminAuditEventType } from '@/types';
 
-type Tab = 'snapshots' | 'activity' | 'drift';
+type Tab = 'snapshots' | 'balances' | 'activity' | 'drift';
 
 const EVENT_LABELS: Record<AdminAuditEventType, { label: string; color: string }> = {
   admin_add:    { label: 'ADMIN ADD',    color: 'var(--cyan)' },
@@ -15,7 +15,7 @@ const EVENT_LABELS: Record<AdminAuditEventType, { label: string; color: string }
 };
 
 export default function CoinAuditLog({ onClose }: { onClose: () => void }) {
-  const { coinAuditLog, acknowledgeAudit, clearAuditLog, adminAuditLog, clearAdminAudit } = useUser();
+  const { coinAuditLog, acknowledgeAudit, clearAuditLog, adminAuditLog, clearAdminAudit, playerSnaps, clearPlayerSnaps } = useUser();
   const { game, gameHistory, clearHistory } = useGame();
   const [tab, setTab] = useState<Tab>('snapshots');
   const [expandedSnap, setExpandedSnap] = useState<string | null>(null);
@@ -76,7 +76,10 @@ export default function CoinAuditLog({ onClose }: { onClose: () => void }) {
         {/* Tabs */}
         <div className="flex border-b" style={{ borderColor: 'rgba(255,215,0,0.1)', flexShrink: 0 }}>
           <button style={tabStyle('snapshots')} onClick={() => setTab('snapshots')}>
-            GAME BALANCES ({gameHistory.length})
+            GAME BAL ({gameHistory.length})
+          </button>
+          <button style={tabStyle('balances')} onClick={() => setTab('balances')}>
+            PLAYERS ({playerSnaps.length})
           </button>
           <button style={tabStyle('activity')} onClick={() => setTab('activity')}>
             ACTIVITY ({adminAuditLog.length})
@@ -223,6 +226,77 @@ export default function CoinAuditLog({ onClose }: { onClose: () => void }) {
                     onClick={() => { if (confirm('Clear game balance history?')) clearHistory(); }}
                   >
                     CLEAR HISTORY
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── Player Balance Snapshots ── */}
+          {tab === 'balances' && (
+            <>
+              {playerSnaps.length === 0 ? (
+                <div className="flex items-center justify-center h-32 mono text-xs tracking-widest" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                  NO SNAPSHOTS YET — PLAY A GAME
+                </div>
+              ) : (
+                <div className="flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  {playerSnaps.map(snap => {
+                    const isOpen = expandedSnap === snap.id;
+                    return (
+                      <div key={snap.id}>
+                        <button
+                          className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-black transition-colors"
+                          onClick={() => setExpandedSnap(isOpen ? null : snap.id)}
+                        >
+                          <div className="flex flex-col gap-0.5">
+                            <span className="mono text-xs font-black" style={{ color: snap.winningTeam === 'A' ? 'var(--cyan)' : 'var(--red)' }}>
+                              GAME #{snap.gameNumber}
+                            </span>
+                            <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                              {new Date(snap.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+                          <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>{isOpen ? '▲' : '▼'}</span>
+                        </button>
+                        {isOpen && (
+                          <div className="px-5 pb-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                            <div className="flex flex-col gap-2 mt-3">
+                              <div className="grid" style={{ gridTemplateColumns: '1fr 72px 72px 64px' }}>
+                                <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>PLAYER</span>
+                                <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>BEFORE</span>
+                                <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>AFTER</span>
+                                <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>NET</span>
+                              </div>
+                              {snap.players.map(p => {
+                                const net = p.after - p.before;
+                                return (
+                                  <div key={p.userId} className="grid items-center" style={{ gridTemplateColumns: '1fr 72px 72px 64px' }}>
+                                    <span className="mono text-xs font-black" style={{ color: 'var(--text)' }}>{p.name}</span>
+                                    <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.4)' }}>{p.before.toLocaleString()}</span>
+                                    <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.4)' }}>{p.after.toLocaleString()}</span>
+                                    <span className="mono text-xs font-black text-right" style={{ color: net > 0 ? 'var(--green)' : net < 0 ? 'var(--red)' : 'rgba(255,255,255,0.2)' }}>
+                                      {net > 0 ? `+${net}` : net < 0 ? `${net}` : '—'}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {playerSnaps.length > 0 && (
+                <div className="flex justify-end px-5 py-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  <button
+                    className="btn btn-ghost px-3 py-1 text-xs"
+                    style={{ color: 'rgba(255,255,255,0.3)' }}
+                    onClick={() => { if (confirm('Clear player balance snapshots?')) clearPlayerSnaps(); }}
+                  >
+                    CLEAR
                   </button>
                 </div>
               )}

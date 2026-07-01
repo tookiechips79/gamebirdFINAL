@@ -150,7 +150,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   };
   const [gameHistory, setGameHistory] = useState<GameRecord[]>(loadHistory);
   const [clockOffset, setClockOffset] = useState(0);
-  const { getUserById, deductCredits, clearPendingBetsForGame, refundBet, recordGameSnapshot } = useUser();
+  const { users, getUserById, deductCredits, clearPendingBetsForGame, refundBet, recordGameSnapshot, recordPlayerSnap } = useUser();
 
   const gameRef = useRef(game);
   useEffect(() => { gameRef.current = game; }, [game]);
@@ -376,9 +376,25 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (!bet.booked) { payouts.push({ userId: bet.userId, amount: bet.amount }); allAffectedIds.add(bet.userId); }
     }
 
-    console.log('[SNAPSHOT] bookedBets:', JSON.stringify(g.bookedBets.map(bb => ({ userIdA: bb.userIdA, userNameA: bb.userNameA, betIdA: bb.betIdA, userIdB: bb.userIdB, userNameB: bb.userNameB, betIdB: bb.betIdB, amount: bb.amount }))));
-    console.log('[SNAPSHOT] betStartBal:', JSON.stringify([...betStartBal.entries()]));
-    console.log('[SNAPSHOT] preBalances:', JSON.stringify(preBalances));
+    // Build total payout map (includes matched wins + unmatched refunds)
+    const totalPayoutByUser: Record<string, number> = {};
+    payouts.forEach(p => { totalPayoutByUser[p.userId] = (totalPayoutByUser[p.userId] || 0) + p.amount; });
+
+    // Snapshot ALL users pre/post this game
+    recordPlayerSnap({
+      id: `ps_${Date.now()}`,
+      gameNumber: g.currentGameNumber,
+      timestamp: Date.now(),
+      winningTeam,
+      players: users
+        .filter(u => !u.isAdmin)
+        .map(u => ({
+          userId: u.id,
+          name: u.name,
+          before: u.credits + (betSumByUser[u.id] || 0),
+          after:  u.credits + (totalPayoutByUser[u.id] || 0),
+        })),
+    });
     // Build snapshot purely from game data — no ref timing issues
     // Collect unique players and their matched bets
     type SnapPlayer = { name: string; matchedAmount: number; bets: { opponentName: string; amount: number; won: boolean; startingBalance?: number }[] };
@@ -486,7 +502,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       nextTotalBookedAmount: 0,
       lastWinner: winningTeam,
     }));
-  }, [getUserById, clearPendingBetsForGame, refundBet, recordGameSnapshot]);
+  }, [users, getUserById, clearPendingBetsForGame, refundBet, recordGameSnapshot, recordPlayerSnap]);
 
   const clearHistory = useCallback(() => {
     setGameHistory([]);

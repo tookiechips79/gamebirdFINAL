@@ -139,6 +139,14 @@ export interface SnapshotBet {
   startingBalance?: number;
 }
 
+export interface PlayerBalanceSnap {
+  id: string;
+  gameNumber: number;
+  timestamp: number;
+  winningTeam: 'A' | 'B';
+  players: { userId: string; name: string; before: number; after: number }[];
+}
+
 export interface GameBalanceSnapshot {
   id: string;
   gameNumber: number;
