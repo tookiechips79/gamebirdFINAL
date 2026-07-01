@@ -2426,7 +2426,7 @@ app.post('/api/stripe/create-payment-intent', async (req, res) => {
   if (!stripe) return res.status(503).json({ error: 'Stripe not configured' });
   const { mode, amount, userId } = req.body;
   try {
-    const amountCents = mode === 'subscription' ? 100 : Math.round(amount * 100);
+    const amountCents = mode === 'subscription' ? 2000 : Math.round(amount * 100);
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountCents,
       currency: 'usd',
@@ -2466,12 +2466,12 @@ app.post('/api/stripe/create-subscription', async (req, res) => {
     // You need to create this price in your Stripe dashboard or we create it inline
     let price;
     const prices = await stripe.prices.list({ active: true, limit: 100 });
-    price = prices.data.find(p => p.unit_amount === 100 && p.recurring?.interval === 'month');
+    price = prices.data.find(p => p.unit_amount === 2000 && p.recurring?.interval === 'month');
     if (!price) {
       const product = await stripe.products.create({ name: 'GameBird Premium Membership' });
       price = await stripe.prices.create({
         product: product.id,
-        unit_amount: 100,
+        unit_amount: 2000,
         currency: 'usd',
         recurring: { interval: 'month' },
       });

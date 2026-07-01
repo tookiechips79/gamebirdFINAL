@@ -61,7 +61,7 @@ function CheckoutForm({ mode, reloadAmt, onSuccess }: {
           opacity: (processing || !stripe) ? 0.5 : 1,
         }}
       >
-        {processing ? '⟳  PROCESSING...' : mode === 'subscription' ? '★  SUBSCRIBE NOW — $1/mo' : `◈  PAY $${reloadAmt}`}
+        {processing ? '⟳  PROCESSING...' : mode === 'subscription' ? '★  SUBSCRIBE NOW — $20/mo' : `◈  PAY $${reloadAmt}`}
       </button>
     </form>
   );
@@ -225,7 +225,7 @@ export default function Membership() {
                   disabled={!currentUser || loading}
                   onClick={initPayment}
                 >
-                  {loading ? '⟳  LOADING...' : mode === 'subscription' ? '★  SUBSCRIBE — $1/mo' : `◈  RELOAD ${reloadAmt} COINS — $${reloadAmt}`}
+                  {loading ? '⟳  LOADING...' : mode === 'subscription' ? '★  SUBSCRIBE — $20/mo' : `◈  RELOAD ${reloadAmt} COINS — $${reloadAmt}`}
                 </button>
                 <button className="btn btn-ghost w-full py-2 text-xs font-black tracking-widest" onClick={() => navigate('/arena')}>CANCEL</button>
               </div>
