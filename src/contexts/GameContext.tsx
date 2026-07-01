@@ -376,7 +376,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (!bet.booked) { payouts.push({ userId: bet.userId, amount: bet.amount }); allAffectedIds.add(bet.userId); }
     }
 
-    console.log('[SNAPSHOT] bookedBets:', JSON.stringify(g.bookedBets.map(bb => ({ userIdA: bb.userIdA, userNameA: bb.userNameA, userIdB: bb.userIdB, userNameB: bb.userNameB, amount: bb.amount }))));
+    console.log('[SNAPSHOT] bookedBets:', JSON.stringify(g.bookedBets.map(bb => ({ userIdA: bb.userIdA, userNameA: bb.userNameA, betIdA: bb.betIdA, userIdB: bb.userIdB, userNameB: bb.userNameB, betIdB: bb.betIdB, amount: bb.amount }))));
+    console.log('[SNAPSHOT] betStartBal:', JSON.stringify([...betStartBal.entries()]));
+    console.log('[SNAPSHOT] preBalances:', JSON.stringify(preBalances));
     // Build snapshot purely from game data — no ref timing issues
     // Collect unique players and their matched bets
     type SnapPlayer = { name: string; matchedAmount: number; bets: { opponentName: string; amount: number; won: boolean; startingBalance?: number }[] };
