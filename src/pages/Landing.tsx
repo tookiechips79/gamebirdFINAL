@@ -352,7 +352,7 @@ export default function Landing() {
               Ready to Get Started?
             </div>
             <p className="text-sm max-w-md leading-relaxed" style={{ color: 'var(--text)' }}>
-              Join players already using Game Bird. Create your free account today and experience the future of pool betting.
+              Join players already using Game Bird. Create your free account today and experience the future of pool action!
             </p>
             <div className="flex gap-3 mt-1">
               <Link to="/arena" className="btn btn-cyan px-8 py-3 text-sm" style={{ textDecoration: 'none' }}>
