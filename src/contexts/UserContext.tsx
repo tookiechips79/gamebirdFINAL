@@ -909,14 +909,17 @@ usersRef.current = merged;
   // Refresh on socket reconnect — also re-claim this account's session slot (every
   // reconnect gets a new socket.id, so the server's activeUserSocket entry would
   // otherwise go stale and silently stop enforcing single-session for this account).
-  // Non-forcing: if another device legitimately took over while we were disconnected,
-  // we log out instead of fighting it for control.
+  // If another device legitimately took over while we were disconnected, we log out.
+  // Skipped entirely while in admin mode — admin can browse any user account from
+  // the UserBar switcher without that being treated as "logging in" as that account.
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket) return;
     const onReconnect = () => {
       if (!currentUserId) return;
       fetchAndMergeFromServer();
+      const isAdminMode = localStorage.getItem('gb_admin') === '1';
+      if (isAdminMode) return;
       claimUserSession(currentUserId).then(res => {
         if (!res.success && res.alreadyActive) {
           setCurrentUserId(null);
