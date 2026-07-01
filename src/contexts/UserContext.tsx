@@ -536,7 +536,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const persistBalance = (userId: string, balance: number) => {
     // Mark this user as protected for 3s — stale users:push won't overwrite their credits
-    recentlyPersistedRef.current.set(userId, Date.now() + 3000);
+    recentlyPersistedRef.current.set(userId, Date.now() + 8000);
     fetch(`${SERVER_URL}/api/credits/${userId}/set`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ balance }),
