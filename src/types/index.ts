@@ -136,6 +136,7 @@ export interface SnapshotBet {
   opponentName: string;
   amount: number;
   won: boolean;
+  startingBalance?: number;
 }
 
 export interface GameBalanceSnapshot {

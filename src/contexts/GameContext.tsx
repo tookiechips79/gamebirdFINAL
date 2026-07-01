@@ -372,7 +372,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     console.log('[SNAPSHOT] bookedBets:', JSON.stringify(g.bookedBets.map(bb => ({ userIdA: bb.userIdA, userNameA: bb.userNameA, userIdB: bb.userIdB, userNameB: bb.userNameB, amount: bb.amount }))));
     // Build snapshot purely from game data — no ref timing issues
     // Collect unique players and their matched bets
-    type SnapPlayer = { name: string; matchedAmount: number; bets: { opponentName: string; amount: number; won: boolean }[] };
+    type SnapPlayer = { name: string; matchedAmount: number; bets: { opponentName: string; amount: number; won: boolean; startingBalance?: number }[] };
     const snapMap: Record<string, SnapPlayer> = {};
     for (const bb of g.bookedBets) {
       const aWon = winningTeam === 'A';
@@ -380,8 +380,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (!snapMap[bb.userIdB]) snapMap[bb.userIdB] = { name: bb.userNameB, matchedAmount: 0, bets: [] };
       snapMap[bb.userIdA].matchedAmount += bb.amount;
       snapMap[bb.userIdB].matchedAmount += bb.amount;
-      snapMap[bb.userIdA].bets.push({ opponentName: bb.userNameB, amount: bb.amount, won: aWon });
-      snapMap[bb.userIdB].bets.push({ opponentName: bb.userNameA, amount: bb.amount, won: !aWon });
+      snapMap[bb.userIdA].bets.push({ opponentName: bb.userNameB, amount: bb.amount, won: aWon, startingBalance: balanceBefore(bb.userIdA, bb.amount) });
+      snapMap[bb.userIdB].bets.push({ opponentName: bb.userNameA, amount: bb.amount, won: !aWon, startingBalance: balanceBefore(bb.userIdB, bb.amount) });
     }
 
     // Build payoutMap from matched bets only (winner gets 2x per booked bet)

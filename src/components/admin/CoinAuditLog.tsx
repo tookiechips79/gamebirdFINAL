@@ -149,15 +149,22 @@ export default function CoinAuditLog({ onClose }: { onClose: () => void }) {
                                     </div>
                                     {/* Bet sub-rows */}
                                     {p.bets.map((b, i) => (
-                                      <div key={i} className="flex items-center gap-2 mt-1 pl-3" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
-                                        <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>└</span>
-                                        <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                                          vs {b.opponentName}
-                                        </span>
-                                        <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>{b.amount} coins</span>
-                                        <span className="mono text-xs font-black" style={{ color: b.won ? 'var(--green)' : 'var(--red)' }}>
-                                          {b.won ? 'WON' : 'LOST'}
-                                        </span>
+                                      <div key={i} className="mt-1 pl-3" style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+                                        <div className="flex items-center gap-2">
+                                          <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 10 }}>└</span>
+                                          <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                                            vs {b.opponentName}
+                                          </span>
+                                          <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>{b.amount} coins</span>
+                                          <span className="mono text-xs font-black" style={{ color: b.won ? 'var(--green)' : 'var(--red)' }}>
+                                            {b.won ? 'WON' : 'LOST'}
+                                          </span>
+                                        </div>
+                                        {b.startingBalance != null && (
+                                          <div className="mono text-xs ml-4" style={{ color: 'rgba(0,229,255,0.35)' }}>
+                                            bal before: {b.startingBalance}
+                                          </div>
+                                        )}
                                       </div>
                                     ))}
                                   </div>
