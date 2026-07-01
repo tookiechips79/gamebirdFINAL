@@ -1303,22 +1303,20 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Claim exclusive session for a regular user account. Mirrors admin:claim — a login
-  // that finds the account already active elsewhere is refused (alreadyActive), and only
-  // takes over (kicking the other device) once the requester explicitly confirms with force:true.
-  socket.on('user:claim', ({ userId, force = false } = {}) => {
+  // Claim exclusive session for a regular user account. If the account is already
+  // active elsewhere, the claim is refused outright — no takeover option. The only
+  // way in is for the existing session to log out (or its socket to disconnect),
+  // which releases the slot.
+  socket.on('user:claim', ({ userId } = {}) => {
     if (!userId) { socket.emit('user:claim:result', { success: false, error: 'Missing userId' }); return; }
     const existing = activeUserSocket.get(userId);
     if (existing && existing !== socket.id) {
-      if (!force) {
-        socket.emit('user:claim:result', { success: false, error: 'This account is already logged in on another device.', alreadyActive: true });
-        return;
-      }
-      io.to(existing).emit('user:kicked', { userId, reason: 'Your session was taken over from another device.' });
+      socket.emit('user:claim:result', { success: false, error: 'This account is already logged in on another device.', alreadyActive: true });
+      return;
     }
     activeUserSocket.set(userId, socket.id);
     socket.emit('user:claim:result', { success: true });
-    console.log(`🔐 [SESSION] Socket ${socket.id} claimed account ${userId}${existing ? ' (forced takeover)' : ''}`);
+    console.log(`🔐 [SESSION] Socket ${socket.id} claimed account ${userId}`);
   });
 
   socket.on('user:release', ({ userId } = {}) => {
@@ -1326,24 +1324,21 @@ io.on('connection', (socket) => {
   });
 
   // Claim exclusive admin session for this arena. If another socket already holds it,
-  // require an explicit force:true to take over — a correct password alone does NOT
-  // silently boot the current admin, so a takeover always requires deliberate confirmation.
-  socket.on('admin:claim', ({ password, arenaId = 'default', force = false } = {}) => {
+  // the claim is refused — no takeover option. The active admin must log out (or
+  // disconnect) before anyone else can claim the role.
+  socket.on('admin:claim', ({ password, arenaId = 'default' } = {}) => {
     if (password !== ADMIN_PASSWORD) {
       socket.emit('admin:claim:result', { success: false, error: 'Incorrect password' });
       return;
     }
     const existing = adminSessionByArena.get(arenaId);
     if (existing && existing !== socket.id) {
-      if (!force) {
-        socket.emit('admin:claim:result', { success: false, error: 'Admin is already active on another device.', alreadyActive: true });
-        return;
-      }
-      io.to(existing).emit('admin:kicked', { reason: 'Your admin session was taken over from another device.' });
+      socket.emit('admin:claim:result', { success: false, error: 'Admin is already active on another device.', alreadyActive: true });
+      return;
     }
     adminSessionByArena.set(arenaId, socket.id);
     socket.emit('admin:claim:result', { success: true });
-    console.log(`👑 [ADMIN] Socket ${socket.id} claimed admin for arena '${arenaId}'${existing ? ' (forced takeover)' : ''}`);
+    console.log(`👑 [ADMIN] Socket ${socket.id} claimed admin for arena '${arenaId}'`);
   });
 
   socket.on('admin:release', ({ arenaId = 'default' } = {}) => {

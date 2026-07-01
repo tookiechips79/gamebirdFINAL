@@ -15,7 +15,7 @@ interface UserContextType {
   currentUser: User | null;
   currentUserId: string | null;
   setCurrentUser: (user: User | null) => void;
-  claimUserSession: (userId: string, force?: boolean) => Promise<{ success: boolean; error?: string; alreadyActive?: boolean }>;
+  claimUserSession: (userId: string) => Promise<{ success: boolean; error?: string; alreadyActive?: boolean }>;
   userKickedMessage: string | null;
   clearUserKickedMessage: () => void;
   addUser: (name: string, isAdmin?: boolean, initialCredits?: number, pin?: string, referredBy?: string) => User;
@@ -487,15 +487,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (currentUserId === userId) setCurrentUserId(null);
     });
 
-    // Single-session enforcement — this account was claimed by another device
-    socket.on('user:kicked', ({ userId, reason }: { userId: string; reason?: string }) => {
-      const myId = localStorage.getItem('gb_current_user_id');
-      if (myId !== userId) return;
-      setCurrentUserId(null);
-      try { sessionStorage.removeItem('gb_session_active'); } catch {}
-      setUserKickedMessage(reason || 'Logged out — this account was opened on another device.');
-    });
-
     socket.on('challenge:new', (challenge: Challenge) => {
       if (!challengesRef.current.find(c => c.id === challenge.id)) {
         updateChallenges([challenge, ...challengesRef.current]);
@@ -582,9 +573,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
   };
 
   // Claims exclusive login session for this account. If another device already holds
-  // it, the server refuses (alreadyActive) rather than silently booting it — the caller
-  // must retry with force:true to confirm a deliberate takeover, mirroring admin claims.
-  const claimUserSession = (userId: string, force = false): Promise<{ success: boolean; error?: string; alreadyActive?: boolean }> => {
+  // it, the claim is refused outright (alreadyActive) — no takeover option. The other
+  // device must log out (or disconnect) before this login can succeed.
+  const claimUserSession = (userId: string): Promise<{ success: boolean; error?: string; alreadyActive?: boolean }> => {
     return new Promise((resolve) => {
       const socket = socketRef.current;
       if (!socket || !socket.connected) { resolve({ success: false, error: 'Not connected to server.' }); return; }
@@ -596,7 +587,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         resolve(res);
       };
       socket.on('user:claim:result', handler);
-      socket.emit('user:claim', { userId, force });
+      socket.emit('user:claim', { userId });
       setTimeout(() => {
         if (settled) return;
         settled = true;
@@ -926,7 +917,7 @@ usersRef.current = merged;
     const onReconnect = () => {
       if (!currentUserId) return;
       fetchAndMergeFromServer();
-      claimUserSession(currentUserId, false).then(res => {
+      claimUserSession(currentUserId).then(res => {
         if (!res.success && res.alreadyActive) {
           setCurrentUserId(null);
           try { sessionStorage.removeItem('gb_session_active'); } catch {}

@@ -23,7 +23,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 }
 
 export default function AdminArena() {
-  const { game, declareWinner, isAdmin, setIsAdmin, resetQueues, updateGame, adminKickedMessage, clearAdminKickedMessage } = useGame();
+  const { game, declareWinner, isAdmin, setIsAdmin, resetQueues, updateGame } = useGame();
   const { users, currentUser, playerSnaps, adminAuditLog, mergeServerUsers, requestAllUsers } = useUser();
   const [fetchingUsers, setFetchingUsers] = React.useState(false);
 
@@ -60,25 +60,7 @@ export default function AdminArena() {
   const unackedAlerts = driftCount + recentSyncFailures;
 
   
-  if (!isAdmin) {
-    if (adminKickedMessage) {
-      return (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.85)' }}>
-          <div className="flex flex-col gap-4 p-6" style={{ background: '#0a0a18', border: '1px solid rgba(255,0,64,0.4)', borderRadius: 4, maxWidth: 340 }}>
-            <span className="mono text-sm font-black tracking-widest" style={{ color: 'var(--red)' }}>⚠ ADMIN SESSION ENDED</span>
-            <span className="mono text-xs" style={{ color: 'var(--text)' }}>{adminKickedMessage}</span>
-            <button
-              className="btn btn-gold py-2 text-xs font-black tracking-widest"
-              onClick={() => { clearAdminKickedMessage(); navigate('/arena'); }}
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return <Navigate to="/arena" replace />;
-  }
+  if (!isAdmin) return <Navigate to="/arena" replace />;
 
   const totalAllCoins = users.filter(u => !u.isAdmin).reduce((s, u) => s + u.credits, 0);
 

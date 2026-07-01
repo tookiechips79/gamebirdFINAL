@@ -23,13 +23,14 @@ export default function Header() {
   const [showPwPrompt, setShowPwPrompt] = useState(false);
   const [pw, setPw] = useState('');
   const [pwError, setPwError] = useState(false);
-  const [showForceConfirm, setShowForceConfirm] = useState(false);
+  const [pwBusyMsg, setPwBusyMsg] = useState('');
   const [mobileOpen, setMobileOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const openPrompt = () => {
     setPw('');
     setPwError(false);
+    setPwBusyMsg('');
     setShowPwPrompt(true);
     setTimeout(() => inputRef.current?.focus(), 50);
   };
@@ -40,20 +41,13 @@ export default function Header() {
       setShowPwPrompt(false);
       navigate('/admin');
     } else if (res.alreadyActive) {
-      setShowPwPrompt(false);
-      setShowForceConfirm(true);
+      setPwBusyMsg('Admin is already logged in on another device.');
+      setPw('');
     } else {
       setPwError(true);
       setPw('');
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  };
-
-  const confirmForceTakeover = async () => {
-    setShowForceConfirm(false);
-    const res = await claimAdmin(pw, true);
-    if (res.success) navigate('/admin');
-    else { setPwError(true); setPw(''); }
   };
 
   return (
@@ -131,7 +125,7 @@ export default function Header() {
                 ref={inputRef}
                 type="password"
                 value={pw}
-                onChange={e => { setPw(e.target.value); setPwError(false); }}
+                onChange={e => { setPw(e.target.value); setPwError(false); setPwBusyMsg(''); }}
                 onKeyDown={e => { if (e.key === 'Enter') submitPassword(); if (e.key === 'Escape') setShowPwPrompt(false); }}
                 placeholder="Enter password"
                 className="bg-transparent border px-3 py-2 mono text-sm outline-none w-full"
@@ -140,25 +134,12 @@ export default function Header() {
               {pwError && (
                 <span className="mono text-xs" style={{ color: 'var(--red)', marginTop: -8 }}>Incorrect password</span>
               )}
+              {pwBusyMsg && (
+                <span className="mono text-xs" style={{ color: 'var(--red)', marginTop: -8 }}>{pwBusyMsg}</span>
+              )}
               <div className="flex gap-2">
                 <button className="btn btn-ghost flex-1 py-2 text-xs" onClick={() => setShowPwPrompt(false)}>CANCEL</button>
                 <button className="btn btn-gold flex-1 py-2 text-xs font-black" onClick={submitPassword}>ENTER</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Force-takeover confirmation — admin already active elsewhere */}
-        {showForceConfirm && (
-          <div className="fixed inset-0 z-[500] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.85)' }}>
-            <div className="flex flex-col gap-4 p-6 w-80" style={{ background: '#0a0a18', border: '1px solid rgba(255,0,64,0.4)', borderRadius: 4 }}>
-              <span className="mono text-sm font-black tracking-widest" style={{ color: 'var(--red)' }}>⚠ ADMIN ALREADY ACTIVE</span>
-              <span className="mono text-xs" style={{ color: 'var(--text)' }}>
-                Admin is currently logged in on another device. Taking over will immediately log that device out.
-              </span>
-              <div className="flex gap-2">
-                <button className="btn btn-ghost flex-1 py-2 text-xs" onClick={() => { setShowForceConfirm(false); setPw(''); }}>CANCEL</button>
-                <button className="btn flex-1 py-2 text-xs font-black" style={{ background: 'var(--red)', color: '#000' }} onClick={confirmForceTakeover}>TAKE OVER</button>
               </div>
             </div>
           </div>

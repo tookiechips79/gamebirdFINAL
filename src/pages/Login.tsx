@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '@/contexts/UserContext';
 import { useGame } from '@/contexts/GameContext';
-import type { User } from '@/types';
 
 type Tab = 'login' | 'signup';
 
@@ -60,7 +59,7 @@ export default function Login() {
   const [showAdminPrompt, setShowAdminPrompt] = useState(false);
   const [adminPw, setAdminPw] = useState('');
   const [adminPwError, setAdminPwError] = useState(false);
-  const [showForceConfirm, setShowForceConfirm] = useState(false);
+  const [adminBusyMsg, setAdminBusyMsg] = useState('');
   const adminInputRef = useRef<HTMLInputElement>(null);
 
   const submitAdminPw = async () => {
@@ -68,19 +67,13 @@ export default function Login() {
     if (res.success) {
       navigate('/admin');
     } else if (res.alreadyActive) {
-      setShowForceConfirm(true);
+      setAdminBusyMsg('Admin is already logged in on another device.');
+      setAdminPw('');
     } else {
       setAdminPwError(true);
       setAdminPw('');
       setTimeout(() => adminInputRef.current?.focus(), 50);
     }
-  };
-
-  const confirmForceTakeover = async () => {
-    setShowForceConfirm(false);
-    const res = await claimAdmin(adminPw, true);
-    if (res.success) navigate('/admin');
-    else { setAdminPwError(true); setAdminPw(''); }
   };
 
   // Login state
@@ -98,9 +91,6 @@ export default function Login() {
 
   const nonAdminUsers = users.filter(u => !u.isAdmin);
 
-  const [showUserForceConfirm, setShowUserForceConfirm] = useState(false);
-  const [pendingUser, setPendingUser] = useState<User | null>(null);
-
   const handleLogin = async () => {
     setLoginError('');
     const user = nonAdminUsers.find(u => u.name.toLowerCase() === loginName.toLowerCase());
@@ -115,24 +105,10 @@ export default function Login() {
       setCurrentUser(user);
       navigate('/');
     } else if (res.alreadyActive) {
-      setPendingUser(user);
-      setShowUserForceConfirm(true);
+      setLoginError('This account is already logged in on another device.');
     } else {
       setLoginError(res.error || 'Login failed — try again.');
     }
-  };
-
-  const confirmUserForceTakeover = async () => {
-    if (!pendingUser) return;
-    setShowUserForceConfirm(false);
-    const res = await claimUserSession(pendingUser.id, true);
-    if (res.success) {
-      setCurrentUser(pendingUser);
-      navigate('/');
-    } else {
-      setLoginError(res.error || 'Login failed — try again.');
-    }
-    setPendingUser(null);
   };
 
   const handleSignup = () => {
@@ -317,7 +293,7 @@ export default function Login() {
           <button
             className="mono text-xs"
             style={{ color: 'rgba(255,255,255,0.2)', background: 'none', border: 'none', cursor: 'pointer' }}
-            onClick={() => { setAdminPw(''); setAdminPwError(false); setShowAdminPrompt(true); setTimeout(() => adminInputRef.current?.focus(), 50); }}
+            onClick={() => { setAdminPw(''); setAdminPwError(false); setAdminBusyMsg(''); setShowAdminPrompt(true); setTimeout(() => adminInputRef.current?.focus(), 50); }}
           >
             ⚙ admin
           </button>
@@ -341,48 +317,17 @@ export default function Login() {
               ref={adminInputRef}
               type="password"
               value={adminPw}
-              onChange={e => { setAdminPw(e.target.value); setAdminPwError(false); }}
+              onChange={e => { setAdminPw(e.target.value); setAdminPwError(false); setAdminBusyMsg(''); }}
               onKeyDown={e => { if (e.key === 'Enter') submitAdminPw(); if (e.key === 'Escape') setShowAdminPrompt(false); }}
               placeholder="Enter password"
               className="bg-transparent border px-3 py-2 mono text-sm outline-none w-full"
               style={{ borderColor: adminPwError ? 'var(--red)' : 'rgba(255,215,0,0.3)', color: 'var(--text)' }}
             />
             {adminPwError && <span className="mono text-xs" style={{ color: 'var(--red)', marginTop: -8 }}>Incorrect password</span>}
+            {adminBusyMsg && <span className="mono text-xs" style={{ color: 'var(--red)', marginTop: -8 }}>{adminBusyMsg}</span>}
             <div className="flex gap-2">
               <button className="btn btn-ghost flex-1 py-2 text-xs" onClick={() => setShowAdminPrompt(false)}>CANCEL</button>
               <button className="btn btn-gold flex-1 py-2 text-xs font-black" onClick={submitAdminPw}>ENTER</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Force-takeover confirmation — admin already active elsewhere */}
-      {showForceConfirm && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.85)' }}>
-          <div className="flex flex-col gap-4 p-6 w-80" style={{ background: '#0a0a18', border: '1px solid rgba(255,0,64,0.4)', borderRadius: 4 }}>
-            <span className="mono text-sm font-black tracking-widest" style={{ color: 'var(--red)' }}>⚠ ADMIN ALREADY ACTIVE</span>
-            <span className="mono text-xs" style={{ color: 'var(--text)' }}>
-              Admin is currently logged in on another device. Taking over will immediately log that device out.
-            </span>
-            <div className="flex gap-2">
-              <button className="btn btn-ghost flex-1 py-2 text-xs" onClick={() => { setShowForceConfirm(false); setAdminPw(''); }}>CANCEL</button>
-              <button className="btn flex-1 py-2 text-xs font-black" style={{ background: 'var(--red)', color: '#000' }} onClick={confirmForceTakeover}>TAKE OVER</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Force-takeover confirmation — this account already active elsewhere */}
-      {showUserForceConfirm && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.85)' }}>
-          <div className="flex flex-col gap-4 p-6 w-80" style={{ background: '#0a0a18', border: '1px solid rgba(255,0,64,0.4)', borderRadius: 4 }}>
-            <span className="mono text-sm font-black tracking-widest" style={{ color: 'var(--red)' }}>⚠ ACCOUNT ALREADY ACTIVE</span>
-            <span className="mono text-xs" style={{ color: 'var(--text)' }}>
-              This account is currently logged in on another device. Continuing will immediately log that device out.
-            </span>
-            <div className="flex gap-2">
-              <button className="btn btn-ghost flex-1 py-2 text-xs" onClick={() => { setShowUserForceConfirm(false); setPendingUser(null); }}>CANCEL</button>
-              <button className="btn flex-1 py-2 text-xs font-black" style={{ background: 'var(--red)', color: '#000' }} onClick={confirmUserForceTakeover}>TAKE OVER</button>
             </div>
           </div>
         </div>

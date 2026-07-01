@@ -9,9 +9,7 @@ interface GameContextType {
   resetQueues: () => void;
   isAdmin: boolean;
   setIsAdmin: (v: boolean) => void;
-  claimAdmin: (password: string, force?: boolean) => Promise<{ success: boolean; error?: string; alreadyActive?: boolean }>;
-  adminKickedMessage: string | null;
-  clearAdminKickedMessage: () => void;
+  claimAdmin: (password: string) => Promise<{ success: boolean; error?: string; alreadyActive?: boolean }>;
   // Timer
   startTimer: () => void;
   pauseTimer: () => void;
@@ -155,13 +153,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const [adminKickedMessage, setAdminKickedMessage] = useState<string | null>(null);
-  const clearAdminKickedMessage = () => setAdminKickedMessage(null);
-
   // Claims exclusive admin session on the server for this arena. If another device
-  // already holds it, the server refuses (alreadyActive) rather than silently booting
-  // it — the caller must retry with force:true to confirm a deliberate takeover.
-  const claimAdmin = (password: string, force = false): Promise<{ success: boolean; error?: string; alreadyActive?: boolean }> => {
+  // already holds it, the claim is refused outright — no takeover option. The active
+  // admin must log out before anyone else can claim the role.
+  const claimAdmin = (password: string): Promise<{ success: boolean; error?: string; alreadyActive?: boolean }> => {
     return new Promise((resolve) => {
       const socket = socketRef.current;
       if (!socket || !socket.connected) { resolve({ success: false, error: 'Not connected to server.' }); return; }
@@ -174,7 +169,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         resolve(res);
       };
       socket.on('admin:claim:result', handler);
-      socket.emit('admin:claim', { password, arenaId: 'default', force });
+      socket.emit('admin:claim', { password, arenaId: 'default' });
       setTimeout(() => {
         if (settled) return;
         settled = true;
@@ -242,12 +237,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
     socket.on('bet:sound', () => {
       betAudio.currentTime = 0;
       betAudio.play().catch(() => {});
-    });
-
-    socket.on('admin:kicked', ({ reason }: { reason?: string }) => {
-      setIsAdminState(false);
-      localStorage.removeItem('gb_admin');
-      setAdminKickedMessage(reason || 'Logged out — admin was opened on another device.');
     });
 
     return () => { clearInterval(syncInterval); socket.disconnect(); };
@@ -564,7 +553,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   return (
     <GameContext.Provider value={{
       game, updateGame, resetQueues,
-      isAdmin, setIsAdmin, claimAdmin, adminKickedMessage, clearAdminKickedMessage,
+      isAdmin, setIsAdmin, claimAdmin,
       startTimer, pauseTimer, resetTimer, clockOffset,
       placeBet, cancelBet,
       declareWinner,
