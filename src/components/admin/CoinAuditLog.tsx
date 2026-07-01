@@ -22,20 +22,12 @@ export default function CoinAuditLog({ onClose }: { onClose: () => void }) {
 
   const unacked = coinAuditLog.filter(e => !e.acknowledged).length;
 
-  // Per-game drift summary derived from gameHistory (same source as Whitebook)
-  const gameDriftRows = gameHistory.map(record => {
-    const playerMap: Record<string, { before: number; after: number }> = {};
-    record.bets.teamA.forEach((b, i) => {
-      if (!playerMap[b.userId]) playerMap[b.userId] = { before: b.startingBalance ?? 0, after: b.startingBalance ?? 0 };
-      playerMap[b.userId].after += b.won ? b.amount : -b.amount;
-    });
-    record.bets.teamB.forEach((b, i) => {
-      if (!playerMap[b.userId]) playerMap[b.userId] = { before: b.startingBalance ?? 0, after: b.startingBalance ?? 0 };
-      playerMap[b.userId].after += b.won ? b.amount : -b.amount;
-    });
-    const totalBefore = Object.values(playerMap).reduce((s, p) => s + p.before, 0);
-    const totalAfter  = Object.values(playerMap).reduce((s, p) => s + p.after,  0);
-    return { record, totalBefore, totalAfter, drift: totalAfter - totalBefore };
+  // Per-game drift summary derived from playerSnaps (all-user before/after, reliable source)
+  const gameDriftRows = playerSnaps.map(snap => {
+    const totalBefore = snap.players.reduce((s, p) => s + p.before, 0);
+    const totalAfter  = snap.players.reduce((s, p) => s + p.after,  0);
+    const record = gameHistory.find(r => r.gameNumber === snap.gameNumber);
+    return { snap, record, totalBefore, totalAfter, drift: totalAfter - totalBefore };
   });
   const driftAlerts = gameDriftRows.filter(r => r.drift !== 0).length;
 
@@ -365,22 +357,21 @@ export default function CoinAuditLog({ onClose }: { onClose: () => void }) {
                 </div>
               ) : (
                 <div className="flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                  {gameDriftRows.map(({ record, totalBefore, totalAfter, drift }) => {
-                    const isOpen = expandedSnap === record.id;
-                    const snap = playerSnaps.find(s => s.gameNumber === record.gameNumber);
+                  {gameDriftRows.map(({ snap, record, totalBefore, totalAfter, drift }) => {
+                    const isOpen = expandedSnap === snap.id;
                     return (
-                      <div key={record.id} style={{ background: drift !== 0 ? 'rgba(255,0,64,0.04)' : 'transparent' }}>
+                      <div key={snap.id} style={{ background: drift !== 0 ? 'rgba(255,0,64,0.04)' : 'transparent' }}>
                         <button
                           className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-black transition-colors"
-                          onClick={() => setExpandedSnap(isOpen ? null : record.id)}
+                          onClick={() => setExpandedSnap(isOpen ? null : snap.id)}
                         >
                           <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-2">
-                              <span className="mono text-xs font-black" style={{ color: record.winningTeam === 'A' ? 'var(--cyan)' : 'var(--red)' }}>
-                                GAME #{record.gameNumber}
+                              <span className="mono text-xs font-black" style={{ color: snap.winningTeam === 'A' ? 'var(--cyan)' : 'var(--red)' }}>
+                                GAME #{snap.gameNumber}
                               </span>
                               <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
-                                {new Date(record.timestamp).toLocaleString()}
+                                {new Date(snap.timestamp).toLocaleString()}
                               </span>
                             </div>
                             <div className="mono text-xs flex gap-4 mt-0.5">
@@ -397,33 +388,27 @@ export default function CoinAuditLog({ onClose }: { onClose: () => void }) {
                         </button>
                         {isOpen && (
                           <div className="px-5 pb-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                            {snap ? (
-                              <div className="flex flex-col gap-2 mt-3">
-                                <div className="grid" style={{ gridTemplateColumns: '1fr 72px 72px 64px' }}>
-                                  <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>PLAYER</span>
-                                  <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>BEFORE</span>
-                                  <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>AFTER</span>
-                                  <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>NET</span>
-                                </div>
-                                {snap.players.map(p => {
-                                  const net = p.after - p.before;
-                                  return (
-                                    <div key={p.userId} className="grid items-center" style={{ gridTemplateColumns: '1fr 72px 72px 64px' }}>
-                                      <span className="mono text-xs font-black" style={{ color: 'var(--text)' }}>{p.name}</span>
-                                      <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.4)' }}>{p.before.toLocaleString()}</span>
-                                      <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.4)' }}>{p.after.toLocaleString()}</span>
-                                      <span className="mono text-xs font-black text-right" style={{ color: net > 0 ? 'var(--green)' : net < 0 ? 'var(--red)' : 'rgba(255,255,255,0.2)' }}>
-                                        {net > 0 ? `+${net}` : net < 0 ? `${net}` : '—'}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
+                            <div className="flex flex-col gap-2 mt-3">
+                              <div className="grid" style={{ gridTemplateColumns: '1fr 72px 72px 64px' }}>
+                                <span className="mono text-xs" style={{ color: 'rgba(255,255,255,0.2)' }}>PLAYER</span>
+                                <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>BEFORE</span>
+                                <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>AFTER</span>
+                                <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.2)' }}>NET</span>
                               </div>
-                            ) : (
-                              <p className="mono text-xs mt-3" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                                No player snapshot available for this game.
-                              </p>
-                            )}
+                              {snap.players.map(p => {
+                                const net = p.after - p.before;
+                                return (
+                                  <div key={p.userId} className="grid items-center" style={{ gridTemplateColumns: '1fr 72px 72px 64px' }}>
+                                    <span className="mono text-xs font-black" style={{ color: drift !== 0 && net !== 0 ? 'var(--red)' : 'var(--text)' }}>{p.name}</span>
+                                    <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.4)' }}>{p.before.toLocaleString()}</span>
+                                    <span className="mono text-xs text-right" style={{ color: 'rgba(255,255,255,0.4)' }}>{p.after.toLocaleString()}</span>
+                                    <span className="mono text-xs font-black text-right" style={{ color: net > 0 ? 'var(--green)' : net < 0 ? 'var(--red)' : 'rgba(255,255,255,0.2)' }}>
+                                      {net > 0 ? `+${net}` : net < 0 ? `${net}` : '—'}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
                       </div>
