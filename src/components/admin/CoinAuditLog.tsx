@@ -12,6 +12,7 @@ const EVENT_LABELS: Record<AdminAuditEventType, { label: string; color: string }
   user_deleted: { label: 'USER DELETED', color: 'var(--red)' },
   reload:       { label: 'RELOAD',       color: 'var(--gold)' },
   tip:          { label: 'TIP',          color: 'var(--gold)' },
+  transfer:     { label: 'P2P TRANSFER', color: 'var(--cyan)' },
 };
 
 export default function CoinAuditLog({ onClose }: { onClose: () => void }) {
@@ -321,20 +322,34 @@ export default function CoinAuditLog({ onClose }: { onClose: () => void }) {
                               {entry.amount > 0 ? `${entry.type === 'admin_deduct' ? '-' : '+'}${entry.amount}` : ''}
                             </span>
                           </div>
-                          {/* TO / FROM labels */}
-                          {(entry.toUserName || entry.userName) && (entry.type === 'admin_add' || entry.type === 'admin_deduct' || entry.type === 'tip' || entry.type === 'reload') && (
-                            <div className="mono text-xs flex items-center gap-2">
-                              <span style={{ color: 'rgba(255,255,255,0.3)' }}>TO</span>
-                              <span style={{ color: 'var(--cyan)', fontWeight: 900 }}>{entry.toUserName ?? entry.userName}</span>
+                          {/* Receipt-style TO / FROM / BY labels */}
+                          {entry.type === 'transfer' ? (
+                            <div className="flex flex-col gap-0.5 mt-0.5 px-2 py-1.5 rounded" style={{ background: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.12)' }}>
+                              <div className="mono text-xs flex items-center gap-2">
+                                <span style={{ color: 'rgba(255,255,255,0.3)', minWidth: 24 }}>FROM</span>
+                                <span style={{ color: 'var(--gold)', fontWeight: 900 }}>{entry.fromUserName}</span>
+                              </div>
+                              <div className="mono text-xs flex items-center gap-2">
+                                <span style={{ color: 'rgba(255,255,255,0.3)', minWidth: 24 }}>TO</span>
+                                <span style={{ color: 'var(--cyan)', fontWeight: 900 }}>{entry.toUserName}</span>
+                              </div>
+                              <div className="mono text-xs flex items-center gap-2">
+                                <span style={{ color: 'rgba(255,255,255,0.3)', minWidth: 24 }}>AMT</span>
+                                <span style={{ color: 'var(--green)', fontWeight: 900 }}>{entry.amount} coins</span>
+                              </div>
                             </div>
-                          )}
-                          {(entry.fromUserName || entry.type === 'admin_add' || entry.type === 'admin_deduct' || entry.type === 'reload') && (
-                            <div className="mono text-xs flex items-center gap-2">
-                              <span style={{ color: 'rgba(255,255,255,0.3)' }}>BY</span>
-                              <span style={{ color: 'var(--gold)', fontWeight: 900 }}>{entry.fromUserName ?? 'Admin'}</span>
-                            </div>
-                          )}
-                          {entry.type === 'user_created' || entry.type === 'user_deleted' ? (
+                          ) : (entry.toUserName || entry.userName) && (entry.type === 'admin_add' || entry.type === 'admin_deduct' || entry.type === 'tip' || entry.type === 'reload') ? (
+                            <>
+                              <div className="mono text-xs flex items-center gap-2">
+                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>TO</span>
+                                <span style={{ color: 'var(--cyan)', fontWeight: 900 }}>{entry.toUserName ?? entry.userName}</span>
+                              </div>
+                              <div className="mono text-xs flex items-center gap-2">
+                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>BY</span>
+                                <span style={{ color: 'var(--gold)', fontWeight: 900 }}>{entry.fromUserName ?? 'Admin'}</span>
+                              </div>
+                            </>
+                          ) : entry.type === 'user_created' || entry.type === 'user_deleted' ? (
                             <div className="mono text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>{entry.userName}</div>
                           ) : null}
                           <div className="mono text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>

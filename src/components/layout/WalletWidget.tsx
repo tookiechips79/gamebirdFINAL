@@ -442,20 +442,72 @@ export default function WalletWidget() {
                       <div key={h} className="text-xs mono text-[var(--text)] tracking-widest uppercase">{h}</div>
                     ))}
                   </div>
-                  {txList.map((tx, i) => (
-                    <div key={`${tx.id}-${i}`} className="grid grid-cols-4 px-4 py-2 items-center hover:bg-black">
-                      <div className="text-xs mono font-black" style={{ color: typeColor[tx.type] ?? 'var(--text)' }}>{typeLabel[tx.type] ?? tx.type}</div>
-                      <div className="text-xs" style={{ color: 'var(--text)' }}>{tx.description}</div>
-                      <div className="text-xs mono font-black" style={{ color: typeColor[tx.type] ?? 'var(--text)' }}>
-                        {txSign[tx.type] ?? ''}{tx.amount}
-                        {tx.type === 'challenge_win' && <span style={{ opacity: 0.7 }}> (+{tx.amount / 2})</span>}
+                  {txList.map((tx, i) => {
+                    const isTransfer = tx.type === 'transfer_sent' || tx.type === 'transfer_received';
+                    if (isTransfer) {
+                      const isSent = tx.type === 'transfer_sent';
+                      // description format: "P2P transfer to NAME" or "P2P transfer from NAME"
+                      const otherParty = tx.description.replace(/^P2P transfer (to|from) /, '');
+                      return (
+                        <div key={`${tx.id}-${i}`} className="px-4 py-2 hover:bg-black">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="mono text-xs font-black px-1.5 py-0.5" style={{ background: isSent ? 'rgba(255,0,64,0.12)' : 'rgba(0,255,136,0.12)', color: typeColor[tx.type], border: `1px solid ${typeColor[tx.type]}44` }}>
+                              {isSent ? 'SENT' : 'RECEIVED'}
+                            </span>
+                            <span className="mono text-xs font-black" style={{ color: typeColor[tx.type] }}>
+                              {txSign[tx.type]}{tx.amount} coins
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-0.5 px-2 py-1.5 rounded" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                            {isSent ? (
+                              <>
+                                <div className="mono text-xs flex items-center gap-2">
+                                  <span style={{ color: 'rgba(255,255,255,0.3)', minWidth: 28 }}>FROM</span>
+                                  <span style={{ color: 'var(--gold)', fontWeight: 900 }}>{currentUser.name}</span>
+                                </div>
+                                <div className="mono text-xs flex items-center gap-2">
+                                  <span style={{ color: 'rgba(255,255,255,0.3)', minWidth: 28 }}>TO</span>
+                                  <span style={{ color: 'var(--cyan)', fontWeight: 900 }}>{otherParty}</span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="mono text-xs flex items-center gap-2">
+                                  <span style={{ color: 'rgba(255,255,255,0.3)', minWidth: 28 }}>FROM</span>
+                                  <span style={{ color: 'var(--gold)', fontWeight: 900 }}>{otherParty}</span>
+                                </div>
+                                <div className="mono text-xs flex items-center gap-2">
+                                  <span style={{ color: 'rgba(255,255,255,0.3)', minWidth: 28 }}>TO</span>
+                                  <span style={{ color: 'var(--cyan)', fontWeight: 900 }}>{currentUser.name}</span>
+                                </div>
+                              </>
+                            )}
+                            <div className="mono text-xs flex items-center gap-2">
+                              <span style={{ color: 'rgba(255,255,255,0.3)', minWidth: 28 }}>DATE</span>
+                              <span style={{ color: 'rgba(255,255,255,0.4)' }}>
+                                {new Date(tx.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}{' '}
+                                {new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={`${tx.id}-${i}`} className="grid grid-cols-4 px-4 py-2 items-center hover:bg-black">
+                        <div className="text-xs mono font-black" style={{ color: typeColor[tx.type] ?? 'var(--text)' }}>{typeLabel[tx.type] ?? tx.type}</div>
+                        <div className="text-xs" style={{ color: 'var(--text)' }}>{tx.description}</div>
+                        <div className="text-xs mono font-black" style={{ color: typeColor[tx.type] ?? 'var(--text)' }}>
+                          {txSign[tx.type] ?? ''}{tx.amount}
+                          {tx.type === 'challenge_win' && <span style={{ opacity: 0.7 }}> (+{tx.amount / 2})</span>}
+                        </div>
+                        <div className="text-xs mono text-[var(--text)]">
+                          {new Date(tx.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}{' '}
+                          {new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
                       </div>
-                      <div className="text-xs mono text-[var(--text)]">
-                        {new Date(tx.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}{' '}
-                        {new Date(tx.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

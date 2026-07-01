@@ -677,7 +677,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }));
     persistBalance(fromId, from.credits - amount);
     persistBalance(to.id, to.credits + amount);
-    logAdminEvent('admin_add', {
+    logAdminEvent('transfer', {
       description: `P2P transfer: ${from.name} → ${to.name} (${amount} coins)`,
       amount, fromUserName: from.name, toUserName: to.name,
       balanceBefore: from.credits, balanceAfter: from.credits - amount,
