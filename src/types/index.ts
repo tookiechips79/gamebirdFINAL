@@ -157,7 +157,7 @@ export interface GameBalanceSnapshot {
   players: { userId: string; name: string; before: number; after: number; bets: SnapshotBet[] }[];
 }
 
-export type AdminAuditEventType = 'admin_add' | 'admin_deduct' | 'user_created' | 'user_deleted' | 'reload' | 'tip' | 'transfer';
+export type AdminAuditEventType = 'admin_add' | 'admin_deduct' | 'user_created' | 'user_deleted' | 'reload' | 'tip' | 'transfer' | 'sync_failed';
 
 export interface AdminAuditEvent {
   id: string;

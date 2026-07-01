@@ -155,6 +155,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const gameRef = useRef(game);
   useEffect(() => { gameRef.current = game; }, [game]);
 
+  // Duplicate-submit guard — a double-tap or a network retry firing declareWinner twice
+  // for the same game would double-pay every booked bet. Lock per game number for 3s.
+  const decidedGameRef = useRef<number | null>(null);
+
   // Socket.io — real-time sync
   const socketRef = useRef<Socket | null>(null);
   const suppressEmitRef = useRef(false); // prevents echo loops
@@ -335,6 +339,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const declareWinner = useCallback((winningTeam: 'A' | 'B') => {
     const g = gameRef.current;
+    if (decidedGameRef.current === g.currentGameNumber) return; // already settled — ignore duplicate call
+    decidedGameRef.current = g.currentGameNumber;
+    setTimeout(() => {
+      if (decidedGameRef.current === g.currentGameNumber) decidedGameRef.current = null;
+    }, 3000);
+
     const losingTeam: 'A' | 'B' = winningTeam === 'A' ? 'B' : 'A';
     const duration = Math.floor((g.timerElapsedMs + (g.timerStartedAt ? Date.now() - g.timerStartedAt : 0)) / 1000);
 

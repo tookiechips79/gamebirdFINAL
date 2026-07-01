@@ -24,7 +24,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 
 export default function AdminArena() {
   const { game, declareWinner, isAdmin, setIsAdmin, resetQueues, updateGame } = useGame();
-  const { users, currentUser, playerSnaps, mergeServerUsers, requestAllUsers } = useUser();
+  const { users, currentUser, playerSnaps, adminAuditLog, mergeServerUsers, requestAllUsers } = useUser();
   const [fetchingUsers, setFetchingUsers] = React.useState(false);
 
   const fetchUsersFromDb = () => {
@@ -49,11 +49,15 @@ export default function AdminArena() {
 
   // Reliable drift count — same source the Coin Audit modal's Drift tab uses (playerSnaps),
   // not the old coinAuditLog running-total tracker which can false-positive.
-  const unackedAlerts = playerSnaps.reduce((count, snap) => {
+  const driftCount = playerSnaps.reduce((count, snap) => {
     const totalBefore = snap.players.reduce((s, p) => s + p.before, 0);
     const totalAfter  = snap.players.reduce((s, p) => s + p.after,  0);
     return count + (totalAfter !== totalBefore ? 1 : 0);
   }, 0);
+  // Recent failed DB writes (last 5 min) — a dropped write is a real, undetected discrepancy
+  // in progress until someone opens Coin Audit, so surface it on the button immediately.
+  const recentSyncFailures = adminAuditLog.filter(e => e.type === 'sync_failed' && Date.now() - e.timestamp < 5 * 60 * 1000).length;
+  const unackedAlerts = driftCount + recentSyncFailures;
 
   
   if (!isAdmin) return <Navigate to="/arena" replace />;

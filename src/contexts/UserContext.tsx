@@ -73,6 +73,25 @@ async function serverPost(path: string, body: unknown) {
   try { await fetch(`${SERVER_URL}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); } catch {}
 }
 
+// Retries a critical credit-affecting POST once on failure. If both attempts fail,
+// invokes onFailure so the caller can surface a visible alert instead of a silent
+// gap between local (optimistic) state and the DB.
+async function postCritical(path: string, body: unknown, onFailure: (path: string, body: unknown, error: string) => void): Promise<boolean> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const r = await fetch(`${SERVER_URL}${path}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+      if (r.ok) return true;
+      if (attempt === 1) onFailure(path, body, `HTTP ${r.status}`);
+    } catch (e: any) {
+      if (attempt === 1) onFailure(path, body, e?.message ?? 'Network error');
+    }
+    if (attempt === 0) await new Promise(r => setTimeout(r, 600));
+  }
+  return false;
+}
+
 async function serverPut(path: string) {
   try { await fetch(`${SERVER_URL}${path}`, { method: 'PUT' }); } catch {}
 }
@@ -193,6 +212,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
     serverDelete('/api/audit/activity');
   };
 
+  // Surfaces a DB write that failed after retry — visible in Activity tab as ⚠ SYNC FAILED
+  // instead of silently leaving local state ahead of the DB (the root cause of undetectable drift).
+  const reportSyncFailure = (path: string, body: unknown, error: string) => {
+    logAdminEvent('sync_failed', {
+      description: `DB write failed (${error}): ${path} — ${JSON.stringify(body)}`,
+      amount: 0,
+    });
+  };
+
   // ── Challenges ──
   const [challenges, setChallenges] = useState<Challenge[]>(loadChallenges);
   const challengesRef = useRef(challenges);
@@ -223,7 +251,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const txEscrow = makeTx('challenge_escrow', amount, `Escrow for challenge vs ${opponent.name}`);
     usersRef.current = usersRef.current.map(u => u.id === current.id ? appendTx({ ...u, credits: u.credits - amount }, txEscrow) : u);
     setUsersAndEmit(prev => prev.map(u => u.id === current.id ? appendTx({ ...u, credits: u.credits - amount }, txEscrow) : u));
-    serverPost(`/api/credits/${current.id}/add`, { amount: -amount, type: 'challenge_escrow', reason: `Escrow for challenge vs ${opponent.name}` });
+    postCritical(`/api/credits/${current.id}/add`, { amount: -amount, type: 'challenge_escrow', reason: `Escrow for challenge vs ${opponent.name}` }, reportSyncFailure);
     try {
       const r = await fetch(`${SERVER_URL}/api/challenges`, {
         method: 'POST',
@@ -238,7 +266,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       // Refund escrow if server call failed
       const txRefund = makeTx('challenge_refund', amount, `Escrow refund — challenge failed`);
       setUsersAndEmit(prev => prev.map(u => u.id === current.id ? appendTx({ ...u, credits: u.credits + amount }, txRefund) : u));
-      serverPost(`/api/credits/${current.id}/add`, { amount, type: 'challenge_refund', reason: 'Escrow refund — challenge failed' });
+      postCritical(`/api/credits/${current.id}/add`, { amount, type: 'challenge_refund', reason: 'Escrow refund — challenge failed' }, reportSyncFailure);
       return { success: false, error: e.message ?? 'Server error.' };
     }
   };
@@ -252,7 +280,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     // Deduct escrow from opponent
     const txEscrow = makeTx('challenge_escrow', challenge.amount, `Escrow for challenge vs ${challenge.creatorName}`);
     setUsersAndEmit(prev => prev.map(u => u.id === current.id ? appendTx({ ...u, credits: u.credits - challenge.amount }, txEscrow) : u));
-    serverPost(`/api/credits/${current.id}/add`, { amount: -challenge.amount, type: 'challenge_escrow', reason: `Escrow for challenge vs ${challenge.creatorName}` });
+    postCritical(`/api/credits/${current.id}/add`, { amount: -challenge.amount, type: 'challenge_escrow', reason: `Escrow for challenge vs ${challenge.creatorName}` }, reportSyncFailure);
     try {
       const r = await fetch(`${SERVER_URL}/api/challenges/${challengeId}/accept`, { method: 'POST' });
       const data = await r.json();
@@ -263,7 +291,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       const txRefund = makeTx('challenge_refund', challenge.amount, `Escrow refund — accept failed`);
       setUsersAndEmit(prev => prev.map(u => u.id === current.id ? appendTx({ ...u, credits: u.credits + challenge.amount }, txRefund) : u));
-      serverPost(`/api/credits/${current.id}/add`, { amount: challenge.amount, type: 'challenge_refund', reason: 'Escrow refund — accept failed' });
+      postCritical(`/api/credits/${current.id}/add`, { amount: challenge.amount, type: 'challenge_refund', reason: 'Escrow refund — accept failed' }, reportSyncFailure);
       return { success: false, error: e.message ?? 'Server error.' };
     }
   };
@@ -281,9 +309,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
       return u;
     }));
-    serverPost(`/api/credits/${challenge.creatorId}/add`, { amount: challenge.amount, type: 'challenge_refund', reason: 'Challenge cancelled — escrow refunded' });
+    postCritical(`/api/credits/${challenge.creatorId}/add`, { amount: challenge.amount, type: 'challenge_refund', reason: 'Challenge cancelled — escrow refunded' }, reportSyncFailure);
     if (challenge.status === 'accepted') {
-      serverPost(`/api/credits/${challenge.opponentId}/add`, { amount: challenge.amount, type: 'challenge_refund', reason: 'Challenge cancelled — escrow refunded' });
+      postCritical(`/api/credits/${challenge.opponentId}/add`, { amount: challenge.amount, type: 'challenge_refund', reason: 'Challenge cancelled — escrow refunded' }, reportSyncFailure);
     }
     // Update local state immediately regardless of server response
     const cancelled = { ...challenge, status: 'cancelled' as const };
@@ -302,7 +330,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const txWin = makeTx('challenge_win', totalPot, `Won challenge vs ${loserName}`);
     setUsersAndEmit(prev => prev.map(u => u.id === winnerId ? appendTx({ ...u, credits: u.credits + totalPot }, txWin) : u));
     updateChallenges(challengesRef.current.map(c => c.id === challengeId ? { ...c, status: 'judged', winnerId, winnerName, judgedAt: Date.now() } : c));
-    serverPost(`/api/credits/${winnerId}/add`, { amount: totalPot, type: 'challenge_win', reason: `Won challenge vs ${loserName}` });
+    postCritical(`/api/credits/${winnerId}/add`, { amount: totalPot, type: 'challenge_win', reason: `Won challenge vs ${loserName}` }, reportSyncFailure);
     void loserId;
   };
 
@@ -319,6 +347,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Track users with in-flight persistBalance writes — suppress DB credit sync for those users
   // for 3 seconds after a write fires, so a stale users:push can't overwrite the correct value
   const recentlyPersistedRef = useRef<Map<string, number>>(new Map());
+
+  // Duplicate-submit guard for critical one-shot actions (P2P transfers). Prevents a
+  // double-tap or a client-side retry from firing the same transfer twice.
+  const inFlightTransferRef = useRef<Set<string>>(new Set());
   // Always recompute on load so the expected is in sync with the current formula
   useEffect(() => {
     const t = totalWithPending(users);
@@ -590,10 +622,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const persistBalance = (userId: string, balance: number) => {
     // Mark this user as protected for 3s — stale users:push won't overwrite their credits
     recentlyPersistedRef.current.set(userId, Date.now() + 8000);
-    fetch(`${SERVER_URL}/api/credits/${userId}/set`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ balance }),
-    }).catch(() => {});
+    postCritical(`/api/credits/${userId}/set`, { balance }, reportSyncFailure);
   };
 
   const deductCredits = (userId: string, amount: number, pendingBet: PendingBet): boolean => {
@@ -609,10 +638,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setUsersAndEmit(prev => prev.map(u =>
       u.id !== userId ? u : appendTx({ ...u, credits: newBal, pendingBets: [...(u.pendingBets || []), pendingBet] }, tx)
     ));
-    fetch(`${SERVER_URL}/api/credits/${userId}/bet`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, betDetails: desc }),
-    }).catch(() => {});
+    postCritical(`/api/credits/${userId}/bet`, { amount, betDetails: desc }, reportSyncFailure);
     checkDrift(`Bet placed by ${user.name} (Game #${pendingBet.gameNumber})`, next);
     return true;
   };
@@ -628,10 +654,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setUsersAndEmit(prev => prev.map(u =>
       u.id !== userId ? u : appendTx({ ...u, credits: newBal, pendingBets: (u.pendingBets || []).filter(b => b.id !== betId) }, tx)
     ));
-    fetch(`${SERVER_URL}/api/credits/${userId}/refund`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, reason: 'Bet refunded (unmatched)' }),
-    }).catch(() => {});
+    postCritical(`/api/credits/${userId}/refund`, { amount, reason: 'Bet refunded (unmatched)' }, reportSyncFailure);
     checkDrift(`Bet refund for ${user?.name ?? userId}`, next);
   };
 
@@ -660,10 +683,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         balanceBefore: balBefore,
         balanceAfter: newBal,
       });
-      fetch(`${SERVER_URL}/api/credits/${userId}/add`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: actualDelta, type: txType, reason: txDesc }),
-      }).catch(() => {});
+      postCritical(`/api/credits/${userId}/add`, { amount: actualDelta, type: txType, reason: txDesc }, reportSyncFailure);
     }
   };
 
@@ -685,10 +705,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (u.id === toId) return appendTx({ ...u, tipsReceived: (u.tipsReceived ?? 0) + amount }, txReceived);
       return u;
     }));
-    fetch(`${SERVER_URL}/api/tip`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fromId, toId, amount, fromName, toName }),
-    }).catch(() => {});
+    postCritical(`/api/tip`, { fromId, toId, amount, fromName, toName }, reportSyncFailure);
   };
 
   const transferCredits = (fromId: string, toUsername: string, amount: number): { success: boolean; error?: string } => {
@@ -699,6 +716,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (to.id === fromId) return { success: false, error: 'Cannot transfer to yourself.' };
     if (amount <= 0 || !Number.isInteger(amount)) return { success: false, error: 'Amount must be a positive whole number.' };
     if (from.credits < amount) return { success: false, error: 'Insufficient coins.' };
+    if (inFlightTransferRef.current.has(fromId)) return { success: false, error: 'Transfer already in progress — please wait.' };
+    inFlightTransferRef.current.add(fromId);
+    setTimeout(() => inFlightTransferRef.current.delete(fromId), 2500);
 
     // Optimistic local update so the UI responds instantly
     const txSent     = makeTx('transfer_sent',     amount, `P2P transfer to ${to.name}`);
@@ -716,11 +736,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     // Persist to DB via dedicated transfer endpoint — records proper tx labels for both users
     // and broadcasts transfer:receipt so the receiver's device gets the record in real-time
-    fetch(`${SERVER_URL}/api/transfer`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fromId, toId: to.id, amount, fromName: from.name, toName: to.name }),
-    }).catch(() => {});
+    postCritical(`/api/transfer`, { fromId, toId: to.id, amount, fromName: from.name, toName: to.name }, reportSyncFailure);
 
     logAdminEvent('transfer', {
       description: `P2P transfer: ${from.name} → ${to.name} (${amount} coins)`,
@@ -764,10 +780,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (!affectedIds.has(u.id)) return;
       const payout = payoutMap[u.id] || 0;
       if (payout > 0) {
-        fetch(`${SERVER_URL}/api/credits/${u.id}/win`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: payout, betDetails: `Won bet — Game #${gameNumber}` }),
-        }).catch(() => {});
+        postCritical(`/api/credits/${u.id}/win`, { amount: payout, betDetails: `Won bet — Game #${gameNumber}` }, reportSyncFailure);
       } else {
         // Loser: balance already deducted at bet-time; just sync so DB doesn't drift from late joins
         persistBalance(u.id, u.credits);

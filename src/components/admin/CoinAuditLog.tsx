@@ -13,6 +13,7 @@ const EVENT_LABELS: Record<AdminAuditEventType, { label: string; color: string }
   reload:       { label: 'RELOAD',       color: 'var(--gold)' },
   tip:          { label: 'TIP',          color: 'var(--gold)' },
   transfer:     { label: 'P2P TRANSFER', color: 'var(--cyan)' },
+  sync_failed:  { label: '⚠ SYNC FAILED', color: 'var(--red)' },
 };
 
 export default function CoinAuditLog({ onClose }: { onClose: () => void }) {
@@ -351,6 +352,10 @@ export default function CoinAuditLog({ onClose }: { onClose: () => void }) {
                             </>
                           ) : entry.type === 'user_created' || entry.type === 'user_deleted' ? (
                             <div className="mono text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>{entry.userName}</div>
+                          ) : entry.type === 'sync_failed' ? (
+                            <div className="mono text-xs px-2 py-1.5 rounded" style={{ color: 'var(--red)', background: 'rgba(255,0,64,0.08)', border: '1px solid rgba(255,0,64,0.2)' }}>
+                              {entry.description}
+                            </div>
                           ) : null}
                           <div className="mono text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
                             {new Date(entry.timestamp).toLocaleString()}
