@@ -594,7 +594,7 @@ app.post('/api/credits/:userId/add', async (req, res) => {
     }
     
     const oldBalance = await getUserBalance(userId);
-    const type = amount > 0 ? 'admin_add' : 'admin_deduct';
+    const type = req.body.type || (amount > 0 ? 'admin_add' : 'admin_deduct');
     const transaction = await addTransaction(userId, type, amount, reason || (amount > 0 ? 'Admin added credits' : 'Admin deducted credits'), adminNotes);
     
     if (!transaction) {
@@ -713,6 +713,23 @@ app.post('/api/credits/:userId/cashout', async (req, res) => {
   } catch (error) {
     console.error(`❌ [CREDITS-CASHOUT] Error:`, error);
     res.status(500).json({ error: 'Failed to process cashout' });
+  }
+});
+
+// Tip — deducts from giver, credits receiver, records tip_given/tip_received in DB
+app.post('/api/tip', async (req, res) => {
+  try {
+    const { fromId, toId, amount, fromName, toName } = req.body;
+    if (!fromId || !toId || !amount || amount <= 0) return res.status(400).json({ error: 'Invalid tip params' });
+    const fromBal = await getUserBalance(fromId);
+    if (fromBal < amount) return res.status(400).json({ error: 'Insufficient coins' });
+    await addTransaction(fromId, 'tip_given',    -amount, `Tip sent to ${toName || toId}`);
+    await addTransaction(toId,   'tip_received',  amount, `Tip received from ${fromName || fromId}`);
+    io.emit('users:push');
+    res.json({ success: true });
+  } catch (e) {
+    console.error('❌ [TIP]', e);
+    res.status(500).json({ error: 'Tip failed' });
   }
 });
 

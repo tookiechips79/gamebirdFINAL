@@ -223,6 +223,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const txEscrow = makeTx('challenge_escrow', amount, `Escrow for challenge vs ${opponent.name}`);
     usersRef.current = usersRef.current.map(u => u.id === current.id ? appendTx({ ...u, credits: u.credits - amount }, txEscrow) : u);
     setUsersAndEmit(prev => prev.map(u => u.id === current.id ? appendTx({ ...u, credits: u.credits - amount }, txEscrow) : u));
+    serverPost(`/api/credits/${current.id}/add`, { amount: -amount, type: 'challenge_escrow', reason: `Escrow for challenge vs ${opponent.name}` });
     try {
       const r = await fetch(`${SERVER_URL}/api/challenges`, {
         method: 'POST',
@@ -237,6 +238,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       // Refund escrow if server call failed
       const txRefund = makeTx('challenge_refund', amount, `Escrow refund — challenge failed`);
       setUsersAndEmit(prev => prev.map(u => u.id === current.id ? appendTx({ ...u, credits: u.credits + amount }, txRefund) : u));
+      serverPost(`/api/credits/${current.id}/add`, { amount, type: 'challenge_refund', reason: 'Escrow refund — challenge failed' });
       return { success: false, error: e.message ?? 'Server error.' };
     }
   };
@@ -250,6 +252,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     // Deduct escrow from opponent
     const txEscrow = makeTx('challenge_escrow', challenge.amount, `Escrow for challenge vs ${challenge.creatorName}`);
     setUsersAndEmit(prev => prev.map(u => u.id === current.id ? appendTx({ ...u, credits: u.credits - challenge.amount }, txEscrow) : u));
+    serverPost(`/api/credits/${current.id}/add`, { amount: -challenge.amount, type: 'challenge_escrow', reason: `Escrow for challenge vs ${challenge.creatorName}` });
     try {
       const r = await fetch(`${SERVER_URL}/api/challenges/${challengeId}/accept`, { method: 'POST' });
       const data = await r.json();
@@ -260,6 +263,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       const txRefund = makeTx('challenge_refund', challenge.amount, `Escrow refund — accept failed`);
       setUsersAndEmit(prev => prev.map(u => u.id === current.id ? appendTx({ ...u, credits: u.credits + challenge.amount }, txRefund) : u));
+      serverPost(`/api/credits/${current.id}/add`, { amount: challenge.amount, type: 'challenge_refund', reason: 'Escrow refund — accept failed' });
       return { success: false, error: e.message ?? 'Server error.' };
     }
   };
@@ -277,6 +281,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
       return u;
     }));
+    serverPost(`/api/credits/${challenge.creatorId}/add`, { amount: challenge.amount, type: 'challenge_refund', reason: 'Challenge cancelled — escrow refunded' });
+    if (challenge.status === 'accepted') {
+      serverPost(`/api/credits/${challenge.opponentId}/add`, { amount: challenge.amount, type: 'challenge_refund', reason: 'Challenge cancelled — escrow refunded' });
+    }
     // Update local state immediately regardless of server response
     const cancelled = { ...challenge, status: 'cancelled' as const };
     updateChallenges(challengesRef.current.map(c => c.id === challengeId ? cancelled : c));
@@ -290,10 +298,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (!challenge || challenge.status === 'judged') return;
     const loserId = winnerId === challenge.creatorId ? challenge.opponentId : challenge.creatorId;
     const totalPot = challenge.amount * 2;
-    const txWin = makeTx('challenge_win', totalPot, `Won challenge vs ${winnerId === challenge.creatorId ? challenge.opponentName : challenge.creatorName}`);
+    const loserName = winnerId === challenge.creatorId ? challenge.opponentName : challenge.creatorName;
+    const txWin = makeTx('challenge_win', totalPot, `Won challenge vs ${loserName}`);
     setUsersAndEmit(prev => prev.map(u => u.id === winnerId ? appendTx({ ...u, credits: u.credits + totalPot }, txWin) : u));
     updateChallenges(challengesRef.current.map(c => c.id === challengeId ? { ...c, status: 'judged', winnerId, winnerName, judgedAt: Date.now() } : c));
-    void loserId; // loser's coins already in escrow, winner gets both
+    serverPost(`/api/credits/${winnerId}/add`, { amount: totalPot, type: 'challenge_win', reason: `Won challenge vs ${loserName}` });
+    void loserId;
   };
 
   // Always-fresh ref — avoids stale closure bugs in callbacks
@@ -590,7 +600,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const user = usersRef.current.find(u => u.id === userId);
     if (!user || user.credits < amount) return false;
     const newBal = user.credits - amount;
-    const tx = makeTx('bet_placed', amount, `Bet placed — Game #${pendingBet.gameNumber} (${pendingBet.teamSide === 'A' ? 'Player A' : 'Player B'})`);
+    const desc = `Bet placed — Game #${pendingBet.gameNumber} (Team ${pendingBet.teamSide})`;
+    const tx = makeTx('bet_placed', amount, desc);
     const next = usersRef.current.map(u =>
       u.id !== userId ? u : appendTx({ ...u, credits: newBal, pendingBets: [...(u.pendingBets || []), pendingBet] }, tx)
     );
@@ -598,7 +609,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setUsersAndEmit(prev => prev.map(u =>
       u.id !== userId ? u : appendTx({ ...u, credits: newBal, pendingBets: [...(u.pendingBets || []), pendingBet] }, tx)
     ));
-    persistBalance(userId, newBal);
+    fetch(`${SERVER_URL}/api/credits/${userId}/bet`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, betDetails: desc }),
+    }).catch(() => {});
     checkDrift(`Bet placed by ${user.name} (Game #${pendingBet.gameNumber})`, next);
     return true;
   };
@@ -614,7 +628,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setUsersAndEmit(prev => prev.map(u =>
       u.id !== userId ? u : appendTx({ ...u, credits: newBal, pendingBets: (u.pendingBets || []).filter(b => b.id !== betId) }, tx)
     ));
-    persistBalance(userId, newBal);
+    fetch(`${SERVER_URL}/api/credits/${userId}/refund`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, reason: 'Bet refunded (unmatched)' }),
+    }).catch(() => {});
     checkDrift(`Bet refund for ${user?.name ?? userId}`, next);
   };
 
@@ -643,7 +660,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
         balanceBefore: balBefore,
         balanceAfter: newBal,
       });
-      persistBalance(userId, newBal);
+      fetch(`${SERVER_URL}/api/credits/${userId}/add`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: actualDelta, type: txType, reason: txDesc }),
+      }).catch(() => {});
     }
   };
 
@@ -665,8 +685,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (u.id === toId) return appendTx({ ...u, tipsReceived: (u.tipsReceived ?? 0) + amount }, txReceived);
       return u;
     }));
-    if (fromUser) persistBalance(fromId, fromUser.credits - amount);
-    if (toUser) persistBalance(toId, toUser.credits + amount);
+    fetch(`${SERVER_URL}/api/tip`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromId, toId, amount, fromName, toName }),
+    }).catch(() => {});
   };
 
   const transferCredits = (fromId: string, toUsername: string, amount: number): { success: boolean; error?: string } => {
@@ -737,8 +759,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const next = usersRef.current.map(update);
     usersRef.current = next;
     setUsersAndEmit(prev => prev.map(update));
-    // Persist ALL affected players (winners AND losers) so DB stays in sync
-    next.forEach(u => { if (affectedIds.has(u.id)) persistBalance(u.id, u.credits); });
+    // Persist ALL affected players with correct tx labels in DB
+    next.forEach(u => {
+      if (!affectedIds.has(u.id)) return;
+      const payout = payoutMap[u.id] || 0;
+      if (payout > 0) {
+        fetch(`${SERVER_URL}/api/credits/${u.id}/win`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: payout, betDetails: `Won bet — Game #${gameNumber}` }),
+        }).catch(() => {});
+      } else {
+        // Loser: balance already deducted at bet-time; just sync so DB doesn't drift from late joins
+        persistBalance(u.id, u.credits);
+      }
+    });
     checkDrift(`Game #${gameNumber} settled`, next);
   };
 
