@@ -1295,20 +1295,25 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Claim exclusive admin session for this arena. If another socket is already the
-  // active admin, kick it (client shows a "logged out — admin opened elsewhere" message).
-  socket.on('admin:claim', ({ password, arenaId = 'default' } = {}) => {
+  // Claim exclusive admin session for this arena. If another socket already holds it,
+  // require an explicit force:true to take over — a correct password alone does NOT
+  // silently boot the current admin, so a takeover always requires deliberate confirmation.
+  socket.on('admin:claim', ({ password, arenaId = 'default', force = false } = {}) => {
     if (password !== ADMIN_PASSWORD) {
       socket.emit('admin:claim:result', { success: false, error: 'Incorrect password' });
       return;
     }
     const existing = adminSessionByArena.get(arenaId);
     if (existing && existing !== socket.id) {
-      io.to(existing).emit('admin:kicked', { reason: 'Another device logged in as admin' });
+      if (!force) {
+        socket.emit('admin:claim:result', { success: false, error: 'Admin is already active on another device.', alreadyActive: true });
+        return;
+      }
+      io.to(existing).emit('admin:kicked', { reason: 'Your admin session was taken over from another device.' });
     }
     adminSessionByArena.set(arenaId, socket.id);
     socket.emit('admin:claim:result', { success: true });
-    console.log(`👑 [ADMIN] Socket ${socket.id} claimed admin for arena '${arenaId}'`);
+    console.log(`👑 [ADMIN] Socket ${socket.id} claimed admin for arena '${arenaId}'${existing ? ' (forced takeover)' : ''}`);
   });
 
   socket.on('admin:release', ({ arenaId = 'default' } = {}) => {

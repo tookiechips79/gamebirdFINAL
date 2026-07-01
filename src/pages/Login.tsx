@@ -59,17 +59,27 @@ export default function Login() {
   const [showAdminPrompt, setShowAdminPrompt] = useState(false);
   const [adminPw, setAdminPw] = useState('');
   const [adminPwError, setAdminPwError] = useState(false);
+  const [showForceConfirm, setShowForceConfirm] = useState(false);
   const adminInputRef = useRef<HTMLInputElement>(null);
 
   const submitAdminPw = async () => {
     const res = await claimAdmin(adminPw);
     if (res.success) {
       navigate('/admin');
+    } else if (res.alreadyActive) {
+      setShowForceConfirm(true);
     } else {
       setAdminPwError(true);
       setAdminPw('');
       setTimeout(() => adminInputRef.current?.focus(), 50);
     }
+  };
+
+  const confirmForceTakeover = async () => {
+    setShowForceConfirm(false);
+    const res = await claimAdmin(adminPw, true);
+    if (res.success) navigate('/admin');
+    else { setAdminPwError(true); setAdminPw(''); }
   };
 
   // Login state
@@ -316,6 +326,22 @@ export default function Login() {
             <div className="flex gap-2">
               <button className="btn btn-ghost flex-1 py-2 text-xs" onClick={() => setShowAdminPrompt(false)}>CANCEL</button>
               <button className="btn btn-gold flex-1 py-2 text-xs font-black" onClick={submitAdminPw}>ENTER</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Force-takeover confirmation — admin already active elsewhere */}
+      {showForceConfirm && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.85)' }}>
+          <div className="flex flex-col gap-4 p-6 w-80" style={{ background: '#0a0a18', border: '1px solid rgba(255,0,64,0.4)', borderRadius: 4 }}>
+            <span className="mono text-sm font-black tracking-widest" style={{ color: 'var(--red)' }}>⚠ ADMIN ALREADY ACTIVE</span>
+            <span className="mono text-xs" style={{ color: 'var(--text)' }}>
+              Admin is currently logged in on another device. Taking over will immediately log that device out.
+            </span>
+            <div className="flex gap-2">
+              <button className="btn btn-ghost flex-1 py-2 text-xs" onClick={() => { setShowForceConfirm(false); setAdminPw(''); }}>CANCEL</button>
+              <button className="btn flex-1 py-2 text-xs font-black" style={{ background: 'var(--red)', color: '#000' }} onClick={confirmForceTakeover}>TAKE OVER</button>
             </div>
           </div>
         </div>

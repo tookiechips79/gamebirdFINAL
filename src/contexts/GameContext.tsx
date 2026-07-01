@@ -9,7 +9,7 @@ interface GameContextType {
   resetQueues: () => void;
   isAdmin: boolean;
   setIsAdmin: (v: boolean) => void;
-  claimAdmin: (password: string) => Promise<{ success: boolean; error?: string }>;
+  claimAdmin: (password: string, force?: boolean) => Promise<{ success: boolean; error?: string; alreadyActive?: boolean }>;
   adminKickedMessage: string | null;
   clearAdminKickedMessage: () => void;
   // Timer
@@ -158,14 +158,15 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [adminKickedMessage, setAdminKickedMessage] = useState<string | null>(null);
   const clearAdminKickedMessage = () => setAdminKickedMessage(null);
 
-  // Claims exclusive admin session on the server for this arena — kicks any other
-  // device currently holding it, preventing two admins from acting at once.
-  const claimAdmin = (password: string): Promise<{ success: boolean; error?: string }> => {
+  // Claims exclusive admin session on the server for this arena. If another device
+  // already holds it, the server refuses (alreadyActive) rather than silently booting
+  // it — the caller must retry with force:true to confirm a deliberate takeover.
+  const claimAdmin = (password: string, force = false): Promise<{ success: boolean; error?: string; alreadyActive?: boolean }> => {
     return new Promise((resolve) => {
       const socket = socketRef.current;
       if (!socket || !socket.connected) { resolve({ success: false, error: 'Not connected to server.' }); return; }
       let settled = false;
-      const handler = (res: { success: boolean; error?: string }) => {
+      const handler = (res: { success: boolean; error?: string; alreadyActive?: boolean }) => {
         if (settled) return;
         settled = true;
         socket.off('admin:claim:result', handler);
@@ -173,7 +174,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         resolve(res);
       };
       socket.on('admin:claim:result', handler);
-      socket.emit('admin:claim', { password, arenaId: 'default' });
+      socket.emit('admin:claim', { password, arenaId: 'default', force });
       setTimeout(() => {
         if (settled) return;
         settled = true;
