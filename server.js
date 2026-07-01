@@ -17,10 +17,10 @@ import {
   createOrUpdateUser,
   getUserById,
   authenticateUser,
-  authenticateUserByPin,
   getUserByName,
   setUserPin,
   setUserPassword,
+  credentialMatches,
   getAllUsers,
   getUserBalance,
   addTransaction,
@@ -961,14 +961,14 @@ app.post('/api/users/login', async (req, res) => {
       if (!existing.pin) {
         // No PIN set yet for this account — first login on any device establishes it.
         await setUserPin(existing.id, pin);
-      } else if (existing.pin !== pin) {
+      } else if (!(await credentialMatches(pin, existing.pin))) {
         return res.status(401).json({ error: 'Incorrect PIN.' });
       }
     } else {
       if (!existing.password) {
         return res.status(401).json({ error: 'No password set for this account. Use PIN instead.' });
       }
-      if (existing.password !== password) {
+      if (!(await credentialMatches(password, existing.password))) {
         return res.status(401).json({ error: 'Incorrect password.' });
       }
     }
@@ -1003,8 +1003,9 @@ app.post('/api/users/:userId/credentials', async (req, res) => {
 
     const hasCredential = !!(user.password || user.pin);
     if (hasCredential) {
-      const matches = (user.password && user.password === currentCredential) || (user.pin && user.pin === currentCredential);
-      if (!matches) return res.status(401).json({ error: 'Current PIN/password is incorrect.' });
+      const matchesPassword = user.password && (await credentialMatches(currentCredential, user.password));
+      const matchesPin = user.pin && (await credentialMatches(currentCredential, user.pin));
+      if (!matchesPassword && !matchesPin) return res.status(401).json({ error: 'Current PIN/password is incorrect.' });
     }
 
     if (newPin) await setUserPin(userId, newPin);

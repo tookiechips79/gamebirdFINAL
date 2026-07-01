@@ -1,5 +1,24 @@
 import pg from 'pg';
+import bcrypt from 'bcryptjs';
 const { Pool } = pg;
+
+const BCRYPT_ROUNDS = 10;
+// bcrypt hashes always start with $2a$/$2b$/$2y$ — used to tell a hash apart from
+// a plaintext value left over from before hashing was introduced.
+const isBcryptHash = (v) => typeof v === 'string' && /^\$2[aby]\$/.test(v);
+
+async function hashCredential(value) {
+  if (!value) return null;
+  return bcrypt.hash(value, BCRYPT_ROUNDS);
+}
+
+// Compares a plaintext guess against a stored value that may be a bcrypt hash
+// (new accounts) or legacy plaintext (accounts created before hashing shipped).
+async function credentialMatches(plain, stored) {
+  if (!stored) return false;
+  if (isBcryptHash(stored)) return bcrypt.compare(plain, stored);
+  return plain === stored;
+}
 
 let pool = null;
 
@@ -130,10 +149,11 @@ export async function createOrUpdateUser(name, password, initialCredits = 0, isA
   const db = getPool();
   const id = explicitId || `user_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
   try {
+    const [passwordHash, pinHash] = await Promise.all([hashCredential(password), hashCredential(pin)]);
     const result = await db.query(
       `INSERT INTO users (id, name, password, pin, is_admin) VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (name) DO NOTHING RETURNING *`,
-      [id, name, password || null, pin, isAdmin]
+      [id, name, passwordHash, pinHash, isAdmin]
     );
     if (!result.rows[0]) return null; // already exists
     const user = result.rows[0];
@@ -155,14 +175,18 @@ export async function getUserById(userId) {
 
 export async function authenticateUser(name, password) {
   const db = getPool();
-  const r = await db.query('SELECT * FROM users WHERE name = $1 AND password = $2', [name, password]);
-  return r.rows[0] || null;
+  const r = await db.query('SELECT * FROM users WHERE name = $1', [name]);
+  const user = r.rows[0];
+  if (!user) return null;
+  return (await credentialMatches(password, user.password)) ? user : null;
 }
 
 export async function authenticateUserByPin(name, pin) {
   const db = getPool();
-  const r = await db.query('SELECT * FROM users WHERE name = $1 AND pin = $2', [name, pin]);
-  return r.rows[0] || null;
+  const r = await db.query('SELECT * FROM users WHERE name = $1', [name]);
+  const user = r.rows[0];
+  if (!user) return null;
+  return (await credentialMatches(pin, user.pin)) ? user : null;
 }
 
 export async function getUserByName(name) {
@@ -173,13 +197,19 @@ export async function getUserByName(name) {
 
 export async function setUserPin(userId, pin) {
   const db = getPool();
-  await db.query('UPDATE users SET pin = $1 WHERE id = $2', [pin, userId]);
+  const hash = await hashCredential(pin);
+  await db.query('UPDATE users SET pin = $1 WHERE id = $2', [hash, userId]);
 }
 
 export async function setUserPassword(userId, password) {
   const db = getPool();
-  await db.query('UPDATE users SET password = $1 WHERE id = $2', [password, userId]);
+  const hash = await hashCredential(password);
+  await db.query('UPDATE users SET password = $1 WHERE id = $2', [hash, userId]);
 }
+
+// Exported so server.js can verify a currentCredential against a stored pin/password
+// (which may be bcrypt-hashed or legacy plaintext) without duplicating the compare logic.
+export { credentialMatches };
 
 export async function getAllUsers() {
   const db = getPool();
