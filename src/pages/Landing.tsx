@@ -163,7 +163,7 @@ export default function Landing() {
               <div className="flex-1 border-t border-[var(--border)]" />
             </div>
             <p className="text-sm leading-relaxed" style={{ color: 'var(--text)', lineHeight: 1.8 }}>
-              For as long as pool has been around, betting on the game has always been part of the GAME — and the culture surrounding it has never been for the faint of heart.
+              For as long as pool has been around, betting on it has always been part of the GAME — and the culture surrounding it has never been for the faint of heart.
               Wagering in a pool hall means approaching strangers, negotiating terms, and trusting someone you just met to honor the result.
               That trust breaks down more often than it should. Disputes happen. Tensions rise. Altercations follow.
               And for the spectators who want action but aren't part of the inner circle? They never even get a bet down.
