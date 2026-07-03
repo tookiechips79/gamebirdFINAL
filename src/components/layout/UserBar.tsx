@@ -42,21 +42,21 @@ export default function UserBar() {
         ref={btnRef}
         className="btn btn-ghost px-3 py-1.5 text-xs flex items-center gap-2"
         onClick={() => { if (isAdmin) setShowPanel(v => !v); else if (!currentUser) navigate('/login'); }}
-        style={{ cursor: (!currentUser || isAdmin) ? 'pointer' : 'default' }}
+        style={{ cursor: (!currentUser || isAdmin) ? 'pointer' : 'default', color: isAdmin ? '#000' : undefined }}
       >
         <span className="w-2 h-2 rounded-full" style={{ background: currentUser ? 'var(--green)' : 'var(--text)' }} />
-        <span className="truncate max-w-[80px]">{currentUser ? currentUser.name : isAdmin ? 'ADMIN' : 'SIGN IN'}</span>
+        <span className="truncate max-w-[80px]" style={{ color: isAdmin ? '#000' : undefined }}>{currentUser ? currentUser.name : isAdmin ? 'ADMIN' : 'SIGN IN'}</span>
         {currentUser && (
-          <span className="mono" style={{ color: 'var(--gold)' }}>{currentUser.credits}</span>
+          <span className="mono" style={{ color: isAdmin ? '#000' : 'var(--gold)' }}>{currentUser.credits}</span>
         )}
-        {isAdmin && <span>{showPanel ? '▲' : '▼'}</span>}
+        {isAdmin && <span style={{ color: '#000' }}>{showPanel ? '▲' : '▼'}</span>}
       </button>
       {(currentUser || isAdmin) && (
         <button
           onClick={handleLogout}
           className="btn btn-ghost p-1.5"
           title="Log out"
-          style={{ color: 'rgba(255,255,255,0.4)' }}
+          style={{ color: isAdmin ? '#000' : 'rgba(255,255,255,0.4)' }}
         >
           <LogOut size={14} />
         </button>
