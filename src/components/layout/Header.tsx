@@ -54,12 +54,12 @@ export default function Header() {
     <>
       <header
         className="w-full flex items-center justify-between px-3 py-2 border-b gap-2"
-        style={{ background: '#cc0000', borderColor: '#000', position: 'sticky', top: 0, zIndex: 100, minWidth: 0 }}
+        style={{ background: isAdmin ? '#00cc44' : '#cc0000', borderColor: '#000', position: 'sticky', top: 0, zIndex: 100, minWidth: 0 }}
       >
         {/* Logo */}
         <Link to="/" className="flex items-center gap-1 no-underline flex-shrink-0" onClick={() => setMobileOpen(false)}>
           <span className="text-lg font-black tracking-widest uppercase" style={{ color: '#000' }}>Game Bird</span>
-          <span className="text-xs mono" style={{ color: '#fff' }}>beta</span>
+          <span className="text-xs mono" style={{ color: isAdmin ? '#000' : '#fff' }}>beta</span>
         </Link>
 
         {/* Desktop Nav */}
@@ -70,7 +70,7 @@ export default function Header() {
               to={to}
               className="px-3 py-1 text-xs font-bold tracking-widest uppercase transition-colors"
               style={{
-                color: loc.pathname === to ? '#000' : '#fff',
+                color: (loc.pathname === to || isAdmin) ? '#000' : '#fff',
                 borderBottom: loc.pathname === to ? '1px solid #000' : '1px solid transparent',
                 textDecoration: 'none',
                 position: 'relative',
@@ -158,7 +158,7 @@ export default function Header() {
           {/* Drawer */}
           <div
             className="lg:hidden fixed z-[99]"
-            style={{ top: 45, left: 0, right: 0, background: '#cc0000', borderBottom: '2px solid #000' }}
+            style={{ top: 45, left: 0, right: 0, background: isAdmin ? '#00cc44' : '#cc0000', borderBottom: '2px solid #000' }}
           >
             {NAV_LINKS.map(({ to, label }) => (
               <Link
@@ -174,7 +174,7 @@ export default function Header() {
                   letterSpacing: '0.15em',
                   textTransform: 'uppercase',
                   borderBottom: '1px solid rgba(0,0,0,0.15)',
-                  color: loc.pathname === to ? '#000' : '#fff',
+                  color: (loc.pathname === to || isAdmin) ? '#000' : '#fff',
                   textDecoration: 'none',
                   background: loc.pathname === to ? 'rgba(0,0,0,0.1)' : 'transparent',
                   position: 'relative',
