@@ -2,8 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 import { User, PendingBet, Transaction, TransactionType, Membership, MembershipTier, CoinAuditEntry, GameBalanceSnapshot, PlayerBalanceSnap, AdminAuditEvent, AdminAuditEventType, Challenge } from '@/types';
 import { io, Socket } from 'socket.io-client';
 
-function makeTx(type: TransactionType, amount: number, description: string): Transaction {
-  return { id: `tx_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, type, amount, description, timestamp: Date.now() };
+function makeTx(type: TransactionType, amount: number, description: string, betTxId?: string): Transaction {
+  return { id: `tx_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, type, amount, description, timestamp: Date.now(), betTxId };
 }
 
 function appendTx(user: User, tx: Transaction): User {
@@ -727,7 +727,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (!user || user.credits < amount) return false;
     const newBal = user.credits - amount;
     const desc = `Bet placed — Game #${pendingBet.gameNumber} (Team ${pendingBet.teamSide})`;
-    const tx = makeTx('bet_placed', amount, desc);
+    const tx = makeTx('bet_placed', amount, desc, pendingBet.txId);
     const next = usersRef.current.map(u =>
       u.id !== userId ? u : appendTx({ ...u, credits: newBal, pendingBets: [...(u.pendingBets || []), pendingBet] }, tx)
     );
@@ -743,7 +743,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const refundBet = (userId: string, betId: string, amount: number) => {
     const user = usersRef.current.find(u => u.id === userId);
     const newBal = (user?.credits ?? 0) + amount;
-    const tx = makeTx('bet_refund', amount, `Bet refunded (unmatched)`);
+    const originBetTxId = user?.pendingBets?.find(b => b.id === betId)?.txId;
+    const tx = makeTx('bet_refund', amount, `Bet refunded (unmatched)`, originBetTxId);
     const next = usersRef.current.map(u =>
       u.id !== userId ? u : appendTx({ ...u, credits: newBal, pendingBets: (u.pendingBets || []).filter(b => b.id !== betId) }, tx)
     );
@@ -853,11 +854,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const payout = payoutMap[u.id] || 0;
       const pendingBets = (u.pendingBets || []).filter(b => b.gameNumber !== gameNumber);
       const gameBets = (u.pendingBets || []).filter(b => b.gameNumber === gameNumber);
+      const txIds = gameBets.map(b => b.txId).filter(Boolean).join(', ');
       let updated = { ...u, credits: u.credits + payout, pendingBets };
       if (payout > 0) {
-        updated = appendTx(updated, makeTx('bet_win', payout, `Won bet — Game #${gameNumber}`));
+        updated = appendTx(updated, makeTx('bet_win', payout, `Won bet — Game #${gameNumber}`, txIds || undefined));
       } else if (gameBets.length > 0) {
-        updated = appendTx(updated, makeTx('bet_loss', gameBets.reduce((s, b) => s + b.amount, 0), `Lost bet — Game #${gameNumber}`));
+        updated = appendTx(updated, makeTx('bet_loss', gameBets.reduce((s, b) => s + b.amount, 0), `Lost bet — Game #${gameNumber}`, txIds || undefined));
       }
       return updated;
     };

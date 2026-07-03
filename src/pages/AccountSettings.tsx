@@ -506,7 +506,10 @@ export default function AccountSettings() {
                               {tx.userName}
                             </div>
                           )}
-                          <div className="text-xs" style={{ color: 'var(--text)' }}>{tx.description}</div>
+                          <div className="text-xs" style={{ color: 'var(--text)' }}>
+                            {tx.description}
+                            {tx.betTxId && <span className="mono ml-2" style={{ color: 'rgba(255,255,255,0.3)' }}>#{tx.betTxId}</span>}
+                          </div>
                           <div className="text-xs mono font-black" style={{ color: typeColor[tx.type] ?? 'var(--text)' }}>
                             {sign[tx.type] ?? ''}{tx.amount}
                           </div>

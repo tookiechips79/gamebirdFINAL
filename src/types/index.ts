@@ -23,6 +23,7 @@ export interface Transaction {
   amount: number;
   description: string;
   timestamp: number;
+  betTxId?: string;
 }
 
 export type MembershipTier = 'free' | 'premium';
@@ -52,6 +53,7 @@ export interface User {
 
 export interface PendingBet {
   id: string;
+  txId: string;
   gameNumber: number;
   amount: number;
   teamSide: 'A' | 'B';

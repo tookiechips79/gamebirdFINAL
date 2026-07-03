@@ -501,7 +501,10 @@ export default function WalletWidget() {
                     return (
                       <div key={`${tx.id}-${i}`} className="grid grid-cols-4 px-4 py-2 items-center hover:bg-black">
                         <div className="text-xs mono font-black" style={{ color: typeColor[tx.type] ?? 'var(--text)' }}>{typeLabel[tx.type] ?? tx.type}</div>
-                        <div className="text-xs" style={{ color: 'var(--text)' }}>{tx.description}</div>
+                        <div className="text-xs" style={{ color: 'var(--text)' }}>
+                          {tx.description}
+                          {tx.betTxId && <span className="mono ml-2" style={{ color: 'rgba(255,255,255,0.3)' }}>#{tx.betTxId}</span>}
+                        </div>
                         <div className="text-xs mono font-black" style={{ color: typeColor[tx.type] ?? 'var(--text)' }}>
                           {txSign[tx.type] ?? ''}{tx.amount}
                           {tx.type === 'challenge_win' && <span style={{ opacity: 0.7 }}> (+{tx.amount / 2})</span>}

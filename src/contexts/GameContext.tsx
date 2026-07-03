@@ -325,7 +325,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     };
 
     // Deduct immediately (pending bet system)
-    const ok = deductCredits(userId, amount, { id: betId, gameNumber, amount, teamSide });
+    const ok = deductCredits(userId, amount, { id: betId, txId, gameNumber, amount, teamSide });
     if (!ok) return false;
 
     setGameAndEmit(prev => {
