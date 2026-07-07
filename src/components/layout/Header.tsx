@@ -53,12 +53,12 @@ export default function Header() {
   return (
     <>
       <header
-        className="w-full flex items-center justify-between px-3 py-2 border-b gap-2"
+        className="w-full flex items-center justify-between px-3 py-1 border-b gap-2"
         style={{ background: isAdmin ? '#00cc44' : '#cc0000', borderColor: '#000', position: 'sticky', top: 0, zIndex: 100, minWidth: 0 }}
       >
         {/* Logo */}
         <Link to="/" className="flex items-center gap-1.5 no-underline flex-shrink-0" onClick={() => setMobileOpen(false)}>
-          <img src="/mascot-logo.jpg" alt="Game Bird" style={{ width: 44, height: 44, flexShrink: 0 }} />
+          <img src="/mascot-logo.jpg" alt="Game Bird" style={{ width: 60, height: 60, flexShrink: 0 }} />
           <span className="text-lg font-black tracking-widest uppercase" style={{ color: '#000' }}>Game Bird</span>
           <span className="text-xs mono" style={{ color: isAdmin ? '#000' : '#fff' }}>beta</span>
         </Link>
