@@ -59,7 +59,7 @@ export default function Header() {
         {/* Logo */}
         <Link to="/" className="flex items-center gap-1.5 no-underline flex-shrink-0" onClick={() => setMobileOpen(false)}>
           <img src="/mascot-logo.jpg" alt="Game Bird" style={{ width: 70, height: 70, flexShrink: 0 }} />
-          <span className="text-2xl" style={{ color: '#000', fontFamily: "'Castillem', 'Barlow Condensed', sans-serif" }}>Game Bird</span>
+          <span className="text-xl tracking-wide" style={{ color: '#000', fontFamily: "'Spicy Sale', 'Barlow Condensed', sans-serif" }}>Game Bird</span>
           <span className="text-xs mono" style={{ color: isAdmin ? '#000' : '#fff' }}>beta</span>
         </Link>
 
