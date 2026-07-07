@@ -53,7 +53,7 @@ export default function Header() {
   return (
     <>
       <header
-        className="w-full flex items-center justify-between px-3 py-1 border-b gap-2"
+        className="w-full flex items-center justify-between px-3 py-0 border-b gap-2"
         style={{ background: isAdmin ? '#00cc44' : '#cc0000', borderColor: '#000', position: 'sticky', top: 0, zIndex: 100, minWidth: 0 }}
       >
         {/* Logo */}
