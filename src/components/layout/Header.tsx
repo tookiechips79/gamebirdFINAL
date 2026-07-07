@@ -57,7 +57,8 @@ export default function Header() {
         style={{ background: isAdmin ? '#00cc44' : '#cc0000', borderColor: '#000', position: 'sticky', top: 0, zIndex: 100, minWidth: 0 }}
       >
         {/* Logo */}
-        <Link to="/" className="flex items-center gap-1 no-underline flex-shrink-0" onClick={() => setMobileOpen(false)}>
+        <Link to="/" className="flex items-center gap-1.5 no-underline flex-shrink-0" onClick={() => setMobileOpen(false)}>
+          <img src="/icon-192.png" alt="Game Bird" style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0 }} />
           <span className="text-lg font-black tracking-widest uppercase" style={{ color: '#000' }}>Game Bird</span>
           <span className="text-xs mono" style={{ color: isAdmin ? '#000' : '#fff' }}>beta</span>
         </Link>
