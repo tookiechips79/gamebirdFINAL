@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '@/contexts/UserContext';
 import { useGame } from '@/contexts/GameContext';
 import { TransactionType, User } from '@/types';
+import { RefreshCw } from 'lucide-react';
 
 const QUICK_AMOUNTS = [10, 20, 50, 100, 200, 500];
 
@@ -71,8 +72,9 @@ function GetCoinsPanel({ currentUser, addCredits }: { currentUser: User; addCred
 }
 
 function CoinsInAction() {
-  const { users } = useUser();
+  const { users, requestAllUsers } = useUser();
   const { game } = useGame();
+  const [spinning, setSpinning] = useState(false);
 
   const activeUsers = users.filter(u => !u.isAdmin && u.online);
   const totalCoins = activeUsers.reduce((s, u) => s + u.credits, 0);
@@ -80,6 +82,12 @@ function CoinsInAction() {
     ...game.teamAQueue, ...game.teamBQueue,
     ...game.nextTeamAQueue, ...game.nextTeamBQueue,
   ].reduce((s, b) => s + b.amount, 0);
+
+  const handleRefresh = () => {
+    requestAllUsers();
+    setSpinning(true);
+    setTimeout(() => setSpinning(false), 600);
+  };
 
   return (
     <div
@@ -89,6 +97,14 @@ function CoinsInAction() {
       <div className="flex items-center gap-2">
         <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--green)', boxShadow: '0 0 6px var(--green)' }} />
         <span className="text-xs mono text-[var(--text)] tracking-widest">COINS IN ACTION</span>
+        <button
+          onClick={handleRefresh}
+          title="Refresh"
+          className="flex items-center justify-center"
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', opacity: 0.5, padding: 2 }}
+        >
+          <RefreshCw size={12} style={{ transition: 'transform 0.6s ease', transform: spinning ? 'rotate(360deg)' : 'none' }} />
+        </button>
       </div>
       <div className="flex items-center gap-6">
         <div className="flex flex-col items-center">
