@@ -25,8 +25,8 @@ export default function Contact() {
               <span className="text-xs font-black uppercase tracking-widest" style={{ color: 'var(--cyan)' }}>Email</span>
             </div>
             <div className="px-4 py-4">
-              <a href="mailto:admin@gamebird.net" className="text-lg font-black mono" style={{ color: 'var(--text)', textDecoration: 'none' }}>
-                admin@gamebird.net
+              <a href="mailto:admin@gamebird.bet" className="text-lg font-black mono" style={{ color: 'var(--text)', textDecoration: 'none' }}>
+                admin@gamebird.bet
               </a>
             </div>
           </div>
