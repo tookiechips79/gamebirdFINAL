@@ -181,7 +181,7 @@ const pageB     = await ctxB.newPage();
 const usersJson = JSON.stringify(localUsers);
 async function addSessionScript(page, userId) {
   await page.addInitScript(({ uid, usersJ }) => {
-    localStorage.setItem('gb_current_user_id', uid);
+    sessionStorage.setItem('gb_current_user_id', uid);
     localStorage.setItem('gb_users', usersJ);
     sessionStorage.setItem('gb_session_active', '1');
   }, { uid: userId, usersJ: usersJson });

@@ -168,10 +168,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<User[]>(loadUsers);
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
     try {
-      // sessionStorage is cleared on new tab/window — require fresh login
-      const hasSession = sessionStorage.getItem('gb_session_active');
-      if (!hasSession) return null;
-      return localStorage.getItem('gb_current_user_id') || null;
+      // sessionStorage is per-tab — both the "is this tab logged in" flag and the
+      // actual user id must live here, or a second tab logging in as a different
+      // user overwrites a value shared across every tab (localStorage), making an
+      // unrelated tab's refresh suddenly show the wrong account.
+      return sessionStorage.getItem('gb_current_user_id') || null;
     } catch { return null; }
   });
   const serverDeletedIdsRef = useRef<Set<string>>(new Set());
@@ -520,7 +521,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     socket.on('transfer:receipt', ({ fromId, toId, amount, fromName, toName, timestamp }: {
       fromId: string; toId: string; amount: number; fromName: string; toName: string; timestamp: number;
     }) => {
-      const myId = usersRef.current.find(u => u.id === currentUserId)?.id ?? localStorage.getItem('gb_current_user_id');
+      const myId = usersRef.current.find(u => u.id === currentUserId)?.id ?? sessionStorage.getItem('gb_current_user_id');
       if (myId !== toId && myId !== fromId) return;
       const txType = myId === toId ? 'transfer_received' : 'transfer_sent';
       const desc   = myId === toId ? `P2P transfer from ${fromName}` : `P2P transfer to ${toName}`;
@@ -554,8 +555,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      if (currentUserId) localStorage.setItem('gb_current_user_id', currentUserId);
-      else localStorage.removeItem('gb_current_user_id');
+      if (currentUserId) sessionStorage.setItem('gb_current_user_id', currentUserId);
+      else sessionStorage.removeItem('gb_current_user_id');
     } catch {}
   }, [currentUserId]);
 
