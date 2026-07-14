@@ -14,7 +14,8 @@ function MemberCounter({ max }: { max: number }) {
     fetch(`${serverUrl}/api/users`)
       .then(r => r.json())
       .then(data => {
-        const count = Array.isArray(data) ? data.filter((u: any) => u.membershipStatus === 'premium').length : 0;
+        const users = Array.isArray(data) ? data : (data?.users ?? []);
+        const count = users.filter((u: any) => !u.isAdmin).length;
         setCurrent(count);
       })
       .catch(() => {});
