@@ -474,6 +474,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
       suppressEmitRef.current = false;
     });
 
+    // Authoritative real-time online status — driven by the server's connection
+    // tracking (activeUserSocket), not a one-way flag that only ever got set to true
+    // on login and never reset. Pushed on every connect/disconnect/claim/release.
+    socket.on('users:online-list', (onlineIds: string[]) => {
+      if (!Array.isArray(onlineIds)) return;
+      const onlineSet = new Set(onlineIds);
+      suppressEmitRef.current = true;
+      const next = usersRef.current.map(u => ({ ...u, online: onlineSet.has(u.id) }));
+      usersRef.current = next;
+      setUsers(next);
+      suppressEmitRef.current = false;
+    });
+
     // Server asks all clients to re-push their user list (triggered by admin opening User Manager)
     socket.on('users:push', () => {
       const toEmit = usersRef.current

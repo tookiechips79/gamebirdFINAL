@@ -319,6 +319,13 @@ let connectedUsers = new Map(); // socketId -> { userId, credits, name }
 // but only after the requester explicitly confirms a force takeover.
 const activeUserSocket = new Map(); // userId -> socket.id
 
+// activeUserSocket is also the authoritative "who is genuinely connected right now"
+// source — reused to drive real-time online status in Coins In Action, since it's
+// already correctly added on login/claim and removed on disconnect/release.
+function broadcastOnlineUsers() {
+  io.emit('users:online-list', Array.from(activeUserSocket.keys()));
+}
+
 // Flag to pause broadcasting during clear operations
 let isListenersPaused = false;
 
@@ -1401,12 +1408,15 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`🔌 [DISCONNECT] Socket disconnected: ${socket.id}`);
     socketArenaMap.delete(socket.id);
+    connectedUsers.delete(socket.id);
     for (const [arenaId, sid] of adminSessionByArena.entries()) {
       if (sid === socket.id) adminSessionByArena.delete(arenaId);
     }
+    let releasedUser = false;
     for (const [userId, sid] of activeUserSocket.entries()) {
-      if (sid === socket.id) activeUserSocket.delete(userId);
+      if (sid === socket.id) { activeUserSocket.delete(userId); releasedUser = true; }
     }
+    if (releasedUser) broadcastOnlineUsers();
   });
 
   // Claim exclusive session for a regular user account. If the account is already
@@ -1422,12 +1432,19 @@ io.on('connection', (socket) => {
     }
     activeUserSocket.set(userId, socket.id);
     socket.emit('user:claim:result', { success: true });
+    broadcastOnlineUsers();
     console.log(`🔐 [SESSION] Socket ${socket.id} claimed account ${userId}`);
   });
 
   socket.on('user:release', ({ userId } = {}) => {
-    if (userId && activeUserSocket.get(userId) === socket.id) activeUserSocket.delete(userId);
+    if (userId && activeUserSocket.get(userId) === socket.id) {
+      activeUserSocket.delete(userId);
+      broadcastOnlineUsers();
+    }
   });
+
+  // A freshly connected client needs the current snapshot, not just future updates
+  socket.emit('users:online-list', Array.from(activeUserSocket.keys()));
 
   // Claim exclusive admin session for this arena. If another socket already holds it,
   // the claim is refused — no takeover option. The active admin must log out (or
