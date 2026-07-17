@@ -11,6 +11,8 @@ interface Props {
   avatarBPosition?: string;
   hideBallCount?: boolean;
   hideBreakIndicator?: boolean;
+  hideGameType?: boolean;
+  hideGameNumber?: boolean;
 }
 
 function TipButton({ playerName, color, align }: { playerName: string; color: string; align: 'left' | 'right' }) {
@@ -128,7 +130,7 @@ function TipButton({ playerName, color, align }: { playerName: string; color: st
   );
 }
 
-export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, stackedLayout, avatarASrc, avatarBSrc, avatarBPosition, hideBallCount, hideBreakIndicator }: Props & { hideAdminControls?: boolean; stackedLayout?: boolean }) {
+export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, stackedLayout, avatarASrc, avatarBSrc, avatarBPosition, hideBallCount, hideBreakIndicator, hideGameType, hideGameNumber }: Props & { hideAdminControls?: boolean; stackedLayout?: boolean }) {
   const avatarA = avatarASrc || '/alex.png';
   const avatarB = avatarBSrc || '/tony.jpg';
   const avatarBPos = avatarBPosition || '70% center';
@@ -156,12 +158,14 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-1.5 border-b border-[var(--border)]">
         <div className="flex items-center gap-2">
-          <span className="mono text-xs font-black tracking-widest" style={{ color: 'var(--gold)' }}>
-            GAME #{currentGameNumber}
-          </span>
-          {game.gameType && (
+          {!hideGameNumber && (
+            <span className="mono text-xs font-black tracking-widest" style={{ color: 'var(--gold)' }}>
+              GAME #{currentGameNumber}
+            </span>
+          )}
+          {!hideGameType && game.gameType && (
             <>
-              <span style={{ color: 'var(--border)' }}>◆</span>
+              {!hideGameNumber && <span style={{ color: 'var(--border)' }}>◆</span>}
               <span className="mono text-xs font-black tracking-widest uppercase" style={{ color: 'var(--gold)' }}>
                 {game.gameType}
               </span>

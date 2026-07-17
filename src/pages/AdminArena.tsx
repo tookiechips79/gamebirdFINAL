@@ -204,7 +204,7 @@ export default function AdminArena() {
       <div className="p-2 flex flex-col gap-3 lg:grid lg:gap-2"
         style={{ gridTemplateColumns: '1fr 200px 1fr', alignItems: 'start' }}>
         <div className="min-w-0 w-full">
-          <Scoreboard onTeamAWin={() => handleWin('A')} onTeamBWin={() => handleWin('B')} stackedLayout />
+          <Scoreboard onTeamAWin={() => handleWin('A')} onTeamBWin={() => handleWin('B')} stackedLayout avatarASrc="/james.jpeg" avatarBSrc="/ross.jpeg" avatarBPosition="0% center" hideGameType hideGameNumber />
         </div>
         <div className="min-w-0 w-full">
           <GameDescription />
