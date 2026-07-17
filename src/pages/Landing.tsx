@@ -360,8 +360,8 @@ export default function Landing() {
               Join players already using Game Bird. Create your free account today and experience the future of pool action!
             </p>
             <div className="flex gap-3 mt-1">
-              <Link to="/arena" className="btn btn-cyan px-8 py-3 text-sm" style={{ textDecoration: 'none' }}>
-                ▶ ENTER ARENA
+              <Link to="/9ball-arena" className="btn btn-cyan px-8 py-3 text-sm" style={{ textDecoration: 'none' }}>
+                ▶ ENTER 9 BALL ARENA
               </Link>
               <Link to="/features" className="btn btn-ghost px-8 py-3 text-sm" style={{ textDecoration: 'none' }}>
                 LEARN MORE
