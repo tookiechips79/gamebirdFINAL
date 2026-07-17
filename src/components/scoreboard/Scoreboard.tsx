@@ -6,6 +6,7 @@ import TimerDisplay from './TimerDisplay';
 interface Props {
   onTeamAWin: () => void;
   onTeamBWin: () => void;
+  avatarASrc?: string;
 }
 
 function TipButton({ playerName, color, align }: { playerName: string; color: string; align: 'left' | 'right' }) {
@@ -123,7 +124,8 @@ function TipButton({ playerName, color, align }: { playerName: string; color: st
   );
 }
 
-export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, stackedLayout }: Props & { hideAdminControls?: boolean; stackedLayout?: boolean }) {
+export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, stackedLayout, avatarASrc }: Props & { hideAdminControls?: boolean; stackedLayout?: boolean }) {
+  const avatarA = avatarASrc || '/alex.png';
   const { game, isAdmin: isAdminCtx, updateGame } = useGame();
   const isAdmin = isAdminCtx && !hideAdminControls;
   const { teamAName, teamBName, teamAGames, teamBGames, teamABalls, teamBBalls, teamAHasBreak, currentGameNumber, lastWinner } = game;
@@ -181,7 +183,7 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
               )}
             </div>
             <div style={{ position: 'relative', width: 112, height: 144, overflow: 'hidden', border: `2px solid ${lastWinner === 'A' ? 'var(--green)' : 'var(--cyan)'}` }}>
-              <img src="/alex.png" alt="Alex" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '70% center', display: 'block' }} />
+              <img src={avatarA} alt={teamAName} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: '70% center', display: 'block' }} />
               {lastWinner === 'A' && (
                 <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,255,65,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <span className="mono font-black tracking-widest" style={{ fontSize: '0.75rem', color: '#fff', textShadow: '0 1px 3px #000', textAlign: 'center', lineHeight: 1.2 }}>🏆{'\n'}WINNER</span>
