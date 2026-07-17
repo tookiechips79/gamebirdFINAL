@@ -103,6 +103,25 @@ export default function NineBallArena() {
                 </div>
               </div>
 
+              {/* Games */}
+              <div>
+                <div className="text-xs mono tracking-[0.3em] text-[var(--text)] uppercase mb-2">Games</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2 hud-panel px-3 py-2" style={{ background: 'rgba(0,229,255,0.04)' }}>
+                    <span className="text-xs mono font-black flex-1" style={{ color: 'var(--cyan)' }}>{game.teamAName}</span>
+                    <button className="btn btn-ghost w-7 h-7 text-sm font-black" onClick={() => updateGame({ teamAGames: game.teamAGames - 1 })}>−</button>
+                    <span className="mono font-black text-lg w-8 text-center" style={{ color: 'var(--cyan)' }}>{game.teamAGames}</span>
+                    <button className="btn btn-cyan w-7 h-7 text-sm font-black" onClick={() => updateGame({ teamAGames: game.teamAGames + 1 })}>+</button>
+                  </div>
+                  <div className="flex items-center gap-2 hud-panel px-3 py-2" style={{ background: 'rgba(255,0,64,0.04)' }}>
+                    <span className="text-xs mono font-black flex-1" style={{ color: 'var(--red)' }}>{game.teamBName}</span>
+                    <button className="btn btn-ghost w-7 h-7 text-sm font-black" onClick={() => updateGame({ teamBGames: game.teamBGames - 1 })}>−</button>
+                    <span className="mono font-black text-lg w-8 text-center" style={{ color: 'var(--red)' }}>{game.teamBGames}</span>
+                    <button className="btn btn-red w-7 h-7 text-sm font-black" onClick={() => updateGame({ teamBGames: game.teamBGames + 1 })}>+</button>
+                  </div>
+                </div>
+              </div>
+
               {/* Balls */}
               <div>
                 <div className="text-xs mono tracking-[0.3em] text-[var(--text)] uppercase mb-2">Balls</div>
