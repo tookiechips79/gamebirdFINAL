@@ -22,6 +22,11 @@ interface GameContextType {
   // Betting
   placeBet: (userId: string, userName: string, teamSide: 'A' | 'B', amount: number, isNextGame?: boolean) => boolean;
   cancelBet: (betId: string, teamSide: 'A' | 'B', isNextGame?: boolean) => void;
+  // Match-wide betting — bets on the overall match outcome, settled only when
+  // endMatch is called (not per individual game)
+  placeMatchBet: (userId: string, userName: string, teamSide: 'A' | 'B', amount: number) => boolean;
+  cancelMatchBet: (betId: string, teamSide: 'A' | 'B') => void;
+  endMatch: (winningTeam: 'A' | 'B') => Promise<void>;
   // Game win
   declareWinner: (winningTeam: 'A' | 'B') => Promise<void>;
   // History
@@ -51,6 +56,10 @@ const defaultGame: GameState = {
   nextBookedBets: [],
   totalBookedAmount: 0,
   nextTotalBookedAmount: 0,
+  matchTeamAQueue: [],
+  matchTeamBQueue: [],
+  matchBookedBets: [],
+  matchTotalBookedAmount: 0,
   betCounter: 1,
   gameDescription: '',
   gameType: '',
@@ -93,6 +102,11 @@ function saveHistory(h: GameRecord[]) {
 }
 
 const BET_COLORS = ['#00FFFF', '#00FF41', '#FFD700', '#FF6B00', '#FF00FF', '#00BFFF'];
+
+// Sentinel gameNumber for match-wide bets — they aren't tied to any single game,
+// so they reuse the same reliable pendingBet/settlement machinery (clearPendingBetsForGame)
+// under a game number no real game will ever occupy.
+const MATCH_GAME_NUMBER = -1;
 
 // Match bets greedily: pair equal amounts, smallest-first
 function matchBets(queueA: Bet[], queueB: Bet[]): { bookedBets: BookedBet[]; updatedA: Bet[]; updatedB: Bet[] } {
@@ -194,6 +208,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Duplicate-submit guard — a double-tap or a network retry firing declareWinner twice
   // for the same game would double-pay every booked bet. Lock per game number for 3s.
   const decidedGameRef = useRef<number | null>(null);
+  const matchEndingRef = useRef(false);
 
   // Socket.io — real-time sync
   const socketRef = useRef<Socket | null>(null);
@@ -371,6 +386,70 @@ export function GameProvider({ children }: { children: ReactNode }) {
       return {
         ...prev,
         [teamSide === 'A' ? aKey : bKey]: newQueue,
+      };
+    });
+  }, []);
+
+  // Match-wide bet on the overall match outcome — settles only when endMatch is
+  // called, not per individual game. Mirrors placeBet but uses the separate
+  // matchTeamAQueue/matchTeamBQueue/matchBookedBets so it never interferes with
+  // per-game betting.
+  const placeMatchBet = useCallback((userId: string, userName: string, teamSide: 'A' | 'B', amount: number): boolean => {
+    const g = gameRef.current;
+    const user = getUserById(userId);
+    if (!user || user.credits < amount) return false;
+
+    const betId = `matchbet_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const txId = String(g.betCounter).padStart(5, '0');
+    const colorIdx = g.betCounter % BET_COLORS.length;
+
+    const newBet: Bet = {
+      id: betId,
+      txId,
+      userId,
+      userName,
+      amount,
+      teamSide,
+      gameNumber: MATCH_GAME_NUMBER,
+      booked: false,
+      color: BET_COLORS[colorIdx],
+      timestamp: Date.now(),
+    };
+
+    const ok = deductCredits(userId, amount, { id: betId, txId, gameNumber: MATCH_GAME_NUMBER, amount, teamSide });
+    if (!ok) return false;
+
+    setGameAndEmit(prev => {
+      const newA = teamSide === 'A' ? [...prev.matchTeamAQueue, newBet] : [...prev.matchTeamAQueue];
+      const newB = teamSide === 'B' ? [...prev.matchTeamBQueue, newBet] : [...prev.matchTeamBQueue];
+
+      const { bookedBets, updatedA, updatedB } = matchBets(newA, newB);
+      const totalBooked = bookedBets.reduce((s, b) => s + b.amount, 0) +
+        prev.matchBookedBets.reduce((s, b) => s + b.amount, 0);
+
+      return {
+        ...prev,
+        matchTeamAQueue: updatedA,
+        matchTeamBQueue: updatedB,
+        matchBookedBets: [...prev.matchBookedBets, ...bookedBets],
+        matchTotalBookedAmount: totalBooked,
+        betCounter: prev.betCounter + 1,
+      };
+    });
+
+    return true;
+  }, [getUserById, deductCredits]);
+
+  const cancelMatchBet = useCallback((betId: string, teamSide: 'A' | 'B') => {
+    setGameAndEmit(prev => {
+      const queue = teamSide === 'A' ? prev.matchTeamAQueue : prev.matchTeamBQueue;
+      const bet = queue.find(b => b.id === betId);
+      if (!bet || bet.booked) return prev; // can't cancel matched bets
+
+      const newQueue = queue.filter(b => b.id !== betId);
+      return {
+        ...prev,
+        [teamSide === 'A' ? 'matchTeamAQueue' : 'matchTeamBQueue']: newQueue,
       };
     });
   }, []);
@@ -576,6 +655,88 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }));
   }, [users, getUserById, clearPendingBetsForGame, refundBet, recordGameSnapshot, recordPlayerSnap]);
 
+  // Settles every match-wide bet based on the overall match winner, admin-declared
+  // (not tied to any particular game's ball/score count). Mirrors declareWinner's
+  // reliability guarantees — fresh DB balances, duplicate-submit guard — but reuses
+  // clearPendingBetsForGame under the MATCH_GAME_NUMBER sentinel instead of building
+  // a parallel settlement path, and resets the match (games won, game number) for
+  // a fresh start afterward.
+  const endMatch = useCallback(async (winningTeam: 'A' | 'B') => {
+    const g = gameRef.current;
+    if (matchEndingRef.current) return;
+    matchEndingRef.current = true;
+    setTimeout(() => { matchEndingRef.current = false; }, 3000);
+
+    const allBets = [...g.matchTeamAQueue, ...g.matchTeamBQueue];
+    const betSumByUser: Record<string, number> = {};
+    allBets.forEach(b => { betSumByUser[b.userId] = (betSumByUser[b.userId] || 0) + b.amount; });
+
+    const affectedUserIds = Object.keys(betSumByUser);
+    let freshBalances: Record<string, number> = {};
+    try {
+      const r = await fetch(`${SERVER_URL}/api/credits/batch`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: affectedUserIds }),
+      });
+      if (r.ok) {
+        const data = await r.json();
+        freshBalances = data.balances || {};
+      }
+    } catch {}
+
+    const payouts: { userId: string; amount: number }[] = [];
+    const allAffectedIds = new Set<string>();
+    for (const bb of g.matchBookedBets) {
+      const winnerId = winningTeam === 'A' ? bb.userIdA : bb.userIdB;
+      payouts.push({ userId: winnerId, amount: bb.amount * 2 });
+      allAffectedIds.add(bb.userIdA);
+      allAffectedIds.add(bb.userIdB);
+    }
+    // Refund unmatched match bets
+    for (const bet of allBets) {
+      if (!bet.booked) { payouts.push({ userId: bet.userId, amount: bet.amount }); allAffectedIds.add(bet.userId); }
+    }
+
+    const totalPayoutByUser: Record<string, number> = {};
+    payouts.forEach(p => { totalPayoutByUser[p.userId] = (totalPayoutByUser[p.userId] || 0) + p.amount; });
+
+    // Snapshot ALL affected users pre/post match settlement, same as per-game audit
+    recordPlayerSnap({
+      id: `ps_match_${Date.now()}`,
+      gameNumber: MATCH_GAME_NUMBER,
+      timestamp: Date.now(),
+      winningTeam,
+      players: users
+        .filter(u => !u.isAdmin && (betSumByUser[u.id] || totalPayoutByUser[u.id]))
+        .map(u => {
+          const base = freshBalances[u.id] ?? u.credits;
+          return {
+            userId: u.id,
+            name: u.name,
+            before: base + (betSumByUser[u.id] || 0),
+            after:  base + (totalPayoutByUser[u.id] || 0),
+          };
+        }),
+    });
+
+    clearPendingBetsForGame(MATCH_GAME_NUMBER, payouts, allAffectedIds);
+
+    // Reset the match for a fresh start — games won, ball counts, and game number
+    setGameAndEmit(prev => ({
+      ...prev,
+      teamAGames: 0,
+      teamBGames: 0,
+      teamABalls: 0,
+      teamBBalls: 0,
+      currentGameNumber: 1,
+      matchTeamAQueue: [],
+      matchTeamBQueue: [],
+      matchBookedBets: [],
+      matchTotalBookedAmount: 0,
+      lastWinner: winningTeam,
+    }));
+  }, [users, getUserById, clearPendingBetsForGame, recordPlayerSnap]);
+
   const clearHistory = useCallback(() => {
     setGameHistory([]);
     if (socketRef.current?.connected) socketRef.current.emit('history:update', []);
@@ -588,6 +749,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       isAdmin, setIsAdmin, claimAdmin,
       startTimer, pauseTimer, resetTimer, clockOffset,
       placeBet, cancelBet,
+      placeMatchBet, cancelMatchBet, endMatch,
       declareWinner,
       gameHistory, clearHistory,
     }}>

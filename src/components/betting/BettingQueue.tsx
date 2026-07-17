@@ -208,12 +208,13 @@ function QueueColumn({ label, color, bets, bookedBets, teamSide, isNextGame, cur
 }
 
 export default function BettingQueue({ compactInput }: { compactInput?: boolean } = {}) {
-  const { game, placeBet, cancelBet, isAdmin } = useGame();
+  const { game, placeBet, cancelBet, placeMatchBet, cancelMatchBet, isAdmin } = useGame();
   const { currentUser, refundBet } = useUser();
 
   const { teamAName, teamBName, teamAQueue, teamBQueue, bookedBets,
     nextTeamAQueue, nextTeamBQueue, nextBookedBets,
-    totalBookedAmount, nextTotalBookedAmount } = game;
+    totalBookedAmount, nextTotalBookedAmount,
+    matchTeamAQueue, matchTeamBQueue, matchBookedBets, matchTotalBookedAmount } = game;
 
   const [notice, setNotice] = useState<{ title: string; message: string; action?: { label: string; to: string } } | null>(null);
 
@@ -253,6 +254,45 @@ export default function BettingQueue({ compactInput }: { compactInput?: boolean 
   const handleDeleteBet = (bet: Bet, isNext: boolean) => {
     if (bet.userId !== currentUser?.id) return;
     cancelBet(bet.id, bet.teamSide, isNext);
+    refundBet(bet.userId, bet.id, bet.amount);
+  };
+
+  const handlePlaceMatchBet = (side: 'A' | 'B', amount: number) => {
+    if (!currentUser) {
+      setNotice({ title: 'Not Signed In', message: 'You must be signed in to place a bet.' });
+      return;
+    }
+    if (!isActiveMember) {
+      setNotice({
+        title: 'Membership Required',
+        message: 'You must be an active member to place bets. Sign up for a membership to get started.',
+        action: { label: 'VIEW MEMBERSHIP', to: '/membership' },
+      });
+      return;
+    }
+    if (currentUser.credits <= 0) {
+      setNotice({
+        title: 'No Coins',
+        message: 'You have no coins. Purchase coins to start betting.',
+        action: { label: 'GET COINS', to: '/get-coins' },
+      });
+      return;
+    }
+    if (currentUser.credits < amount) {
+      setNotice({
+        title: 'Insufficient Coins',
+        message: `You only have ${currentUser.credits} coins — need ${amount} to place this bet. Purchase more coins to continue.`,
+        action: { label: 'GET COINS', to: '/get-coins' },
+      });
+      return;
+    }
+    placeMatchBet(currentUser.id, currentUser.name, side, amount);
+    playBetSound();
+  };
+
+  const handleDeleteMatchBet = (bet: Bet) => {
+    if (bet.userId !== currentUser?.id) return;
+    cancelMatchBet(bet.id, bet.teamSide);
     refundBet(bet.userId, bet.id, bet.amount);
   };
 
@@ -349,6 +389,34 @@ export default function BettingQueue({ compactInput }: { compactInput?: boolean 
               <BetList label={teamAName} color="var(--cyan)" bets={nextTeamAQueue} bookedBets={nextBookedBets} currentUserId={currentUser?.id ?? null} onDeleteBet={bet => handleDeleteBet(bet, true)} />
               <BetList label={teamBName} color="var(--red)" bets={nextTeamBQueue} bookedBets={nextBookedBets} currentUserId={currentUser?.id ?? null} onDeleteBet={bet => handleDeleteBet(bet, true)} />
               <BetButtons color="var(--red)" teamSide="B" isNextGame={true} onPlaceBet={handlePlaceBet} />
+            </div>
+          </div>
+
+          {/* Up arrow divider */}
+          <div className="flex items-center justify-center py-1">
+            <span className="mono font-black text-2xl" style={{ color: 'var(--gold)', textShadow: '0 0 10px var(--gold)' }}>↑</span>
+          </div>
+
+          {/* Match betting queue — settles only when the whole match ends, not per game */}
+          <div className="hud-panel bracket overflow-hidden" style={{ borderColor: 'rgba(255,215,0,0.3)' }}>
+            <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)]">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[var(--gold)]" style={{ boxShadow: '0 0 6px var(--gold)' }} />
+                <span className="text-xs mono tracking-widest text-[var(--text)]">MATCH BETTING QUEUE</span>
+              </div>
+              <div className="flex items-center gap-3 text-xs mono">
+                <span style={{ color: 'var(--green)' }}>{matchBookedBets.length} MATCHED</span>
+                <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{matchTotalBookedAmount * 2} ITM</span>
+              </div>
+            </div>
+            <div className="px-4 py-1.5 text-xs mono" style={{ color: 'rgba(255,215,0,0.6)' }}>
+              Bets on the overall match winner — settle only when admin ends the match, not per game.
+            </div>
+            <div className="flex flex-wrap sm:flex-nowrap" style={{ minHeight: 200 }}>
+              <BetButtons color="var(--cyan)" teamSide="A" isNextGame={false} onPlaceBet={(side, amount) => handlePlaceMatchBet(side, amount)} />
+              <BetList label={teamAName} color="var(--cyan)" bets={matchTeamAQueue} bookedBets={matchBookedBets} currentUserId={currentUser?.id ?? null} onDeleteBet={handleDeleteMatchBet} />
+              <BetList label={teamBName} color="var(--red)" bets={matchTeamBQueue} bookedBets={matchBookedBets} currentUserId={currentUser?.id ?? null} onDeleteBet={handleDeleteMatchBet} />
+              <BetButtons color="var(--red)" teamSide="B" isNextGame={false} onPlaceBet={(side, amount) => handlePlaceMatchBet(side, amount)} />
             </div>
           </div>
         </div>

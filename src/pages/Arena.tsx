@@ -14,7 +14,7 @@ import UserManager from '@/components/admin/UserManager';
 import CoinAuditLog from '@/components/admin/CoinAuditLog';
 
 export default function Arena() {
-  const { game, declareWinner, isAdmin, setIsAdmin, resetQueues, updateGame } = useGame();
+  const { game, declareWinner, endMatch, isAdmin, setIsAdmin, resetQueues, updateGame } = useGame();
   const { users, currentUser, currentUserId, coinAuditLog, mergeServerUsers, requestAllUsers } = useUser();
   const [fetchingData, setFetchingData] = useState(false);
 
@@ -51,6 +51,13 @@ export default function Arena() {
     setWinFlash(team);
     declareWinner(team);
     setTimeout(() => setWinFlash(null), 600);
+  };
+
+  const handleEndMatch = (team: 'A' | 'B') => {
+    const winnerName = team === 'A' ? game.teamAName : game.teamBName;
+    if (!confirm(`End the match — declare ${winnerName} the overall match winner? This settles all match bets and resets the match.`)) return;
+    endMatch(team);
+    setAdminOpen(false);
   };
 
   return (
@@ -101,6 +108,19 @@ export default function Arena() {
                   </button>
                   <button className="btn btn-red py-2.5 text-sm font-black tracking-widest" onClick={() => { handleWin('B'); setAdminOpen(false); }}>
                     ✓ {game.teamBName} WINS
+                  </button>
+                </div>
+              </div>
+
+              {/* Match */}
+              <div>
+                <div className="text-xs mono tracking-[0.3em] uppercase mb-2" style={{ color: 'var(--gold)' }}>End Match</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button className="btn py-2.5 text-sm font-black tracking-widest" style={{ background: 'rgba(0,229,255,0.1)', border: '1px solid var(--cyan)', color: 'var(--cyan)' }} onClick={() => handleEndMatch('A')}>
+                    🏆 {game.teamAName} WINS MATCH
+                  </button>
+                  <button className="btn py-2.5 text-sm font-black tracking-widest" style={{ background: 'rgba(255,0,64,0.1)', border: '1px solid var(--red)', color: 'var(--red)' }} onClick={() => handleEndMatch('B')}>
+                    🏆 {game.teamBName} WINS MATCH
                   </button>
                 </div>
               </div>

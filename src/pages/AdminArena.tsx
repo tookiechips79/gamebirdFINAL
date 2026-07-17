@@ -23,7 +23,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 }
 
 export default function AdminArena() {
-  const { game, declareWinner, isAdmin, setIsAdmin, resetQueues, updateGame } = useGame();
+  const { game, declareWinner, endMatch, isAdmin, setIsAdmin, resetQueues, updateGame } = useGame();
   const { users, currentUser, playerSnaps, adminAuditLog, mergeServerUsers, requestAllUsers } = useUser();
   const [fetchingUsers, setFetchingUsers] = React.useState(false);
 
@@ -70,6 +70,12 @@ export default function AdminArena() {
     setWinFlash(team);
     declareWinner(team);
     setTimeout(() => setWinFlash(null), 600);
+  };
+
+  const handleEndMatch = (team: 'A' | 'B') => {
+    const winnerName = team === 'A' ? game.teamAName : game.teamBName;
+    if (!confirm(`End the match — declare ${winnerName} the overall match winner? This settles all match bets and resets the match.`)) return;
+    endMatch(team);
   };
 
   return (
@@ -128,6 +134,19 @@ export default function AdminArena() {
               </button>
               <button className="btn btn-red py-1 text-xs font-black tracking-widest flex-1" onClick={() => handleWin('B')}>
                 ✓ {game.teamBName}
+              </button>
+            </div>
+          </div>
+
+          {/* End Match */}
+          <div className="flex flex-col gap-1 p-2" style={{ background: '#0a0a18' }}>
+            <span className="mono text-xs font-black tracking-[0.2em] uppercase" style={{ color: 'var(--gold)' }}>End Match</span>
+            <div className="flex gap-2">
+              <button className="btn py-1 text-xs font-black tracking-widest flex-1" style={{ background: 'rgba(0,229,255,0.1)', border: '1px solid var(--cyan)', color: 'var(--cyan)' }} onClick={() => handleEndMatch('A')}>
+                🏆 {game.teamAName}
+              </button>
+              <button className="btn py-1 text-xs font-black tracking-widest flex-1" style={{ background: 'rgba(255,0,64,0.1)', border: '1px solid var(--red)', color: 'var(--red)' }} onClick={() => handleEndMatch('B')}>
+                🏆 {game.teamBName}
               </button>
             </div>
           </div>

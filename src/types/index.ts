@@ -129,6 +129,10 @@ export interface GameState {
   nextBookedBets: BookedBet[];
   totalBookedAmount: number;
   nextTotalBookedAmount: number;
+  matchTeamAQueue: Bet[];
+  matchTeamBQueue: Bet[];
+  matchBookedBets: BookedBet[];
+  matchTotalBookedAmount: number;
   betCounter: number;
   gameDescription: string;
   gameType: string;
