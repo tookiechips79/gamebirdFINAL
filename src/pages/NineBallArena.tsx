@@ -176,7 +176,7 @@ export default function NineBallArena() {
           {fetchingData ? '⟳ FETCHING...' : '⟳ FETCH DATA'}
         </button>
         <PlayerBank />
-        <Scoreboard onTeamAWin={() => handleWin('A')} onTeamBWin={() => handleWin('B')} hideAdminControls avatarASrc="/jamesC.png" />
+        <Scoreboard onTeamAWin={() => handleWin('A')} onTeamBWin={() => handleWin('B')} hideAdminControls avatarASrc="/jamesC.png" avatarBSrc="/ross.jpeg" />
         <BettingQueue />
         <GameHistory />
         <BetLedger />
