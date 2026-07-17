@@ -6,6 +6,7 @@ import UserBar from './UserBar';
 
 const NAV_LINKS = [
   { to: '/arena', label: 'ARENA' },
+  { to: '/9ball-arena', label: '9 BALL ARENA' },
   { to: '/postbox', label: 'POSTBOX' },
   { to: '/features', label: 'FEATURES' },
   { to: '/about', label: 'ABOUT' },

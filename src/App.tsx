@@ -35,6 +35,7 @@ import { UserProvider, useUser } from '@/contexts/UserContext';
 import { GameProvider } from '@/contexts/GameContext';
 import Landing from '@/pages/Landing';
 import Arena from '@/pages/Arena';
+import NineBallArena from '@/pages/NineBallArena';
 import Whitebook from '@/pages/Whitebook';
 import Features from '@/pages/Features';
 import About from '@/pages/About';
@@ -63,6 +64,7 @@ export default function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/arena" element={<Arena />} />
+            <Route path="/9ball-arena" element={<NineBallArena />} />
             <Route path="/admin" element={<AdminArena />} />
             <Route path="/whitebook" element={<Whitebook />} />
             <Route path="/features" element={<Features />} />
