@@ -130,6 +130,26 @@ export default function AdminArena() {
             </div>
           </div>
 
+          {/* Games */}
+          <div className="flex flex-col gap-1 p-2" style={{ background: '#0a0a18' }}>
+            <span className="mono text-xs font-black tracking-[0.2em] uppercase" style={{ color: 'rgba(255,215,0,0.6)' }}>Games</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 flex-1">
+                <span className="mono text-xs truncate" style={{ color: 'var(--cyan)', maxWidth: 50 }}>{game.teamAName}</span>
+                <button className="btn btn-ghost w-6 h-6 text-xs font-black ml-auto" onClick={() => updateGame({ teamAGames: game.teamAGames - 1 })}>−</button>
+                <span className="mono font-black text-sm w-5 text-center" style={{ color: 'var(--cyan)' }}>{game.teamAGames}</span>
+                <button className="btn btn-cyan w-6 h-6 text-xs font-black" onClick={() => updateGame({ teamAGames: game.teamAGames + 1 })}>+</button>
+              </div>
+              <div className="w-px h-5" style={{ background: 'rgba(255,215,0,0.2)' }} />
+              <div className="flex items-center gap-1 flex-1">
+                <span className="mono text-xs truncate" style={{ color: 'var(--red)', maxWidth: 50 }}>{game.teamBName}</span>
+                <button className="btn btn-ghost w-6 h-6 text-xs font-black ml-auto" onClick={() => updateGame({ teamBGames: game.teamBGames - 1 })}>−</button>
+                <span className="mono font-black text-sm w-5 text-center" style={{ color: 'var(--red)' }}>{game.teamBGames}</span>
+                <button className="btn btn-red w-6 h-6 text-xs font-black" onClick={() => updateGame({ teamBGames: game.teamBGames + 1 })}>+</button>
+              </div>
+            </div>
+          </div>
+
           {/* Balls */}
           <div className="flex flex-col gap-1 p-2" style={{ background: '#0a0a18' }}>
             <span className="mono text-xs font-black tracking-[0.2em] uppercase" style={{ color: 'rgba(255,215,0,0.6)' }}>Balls</span>
