@@ -30,7 +30,6 @@ function BetRow({ bet, isMatched, pairColor, onDelete }: { bet: Bet; isMatched: 
         <span className="text-base font-semibold truncate" style={{ color: pairColor || (isMatched ? 'var(--text)' : 'var(--text-dim)') }}>
           {bet.userName}
         </span>
-        <span className="mono text-xs flex-shrink-0" style={{ color: 'rgba(255,255,255,0.25)' }}>#{bet.txId}</span>
       </div>
       <div className="flex items-center gap-1 flex-shrink-0 pr-2">
         <span className="mono text-base font-bold" style={{ color: pairColor || (isMatched ? 'var(--green)' : 'var(--text-dim)') }}>
