@@ -65,6 +65,8 @@ export default function AdminArena() {
   const totalAllCoins = users.filter(u => !u.isAdmin).reduce((s, u) => s + u.credits, 0);
 
   const handleWin = (team: 'A' | 'B') => {
+    const winnerName = team === 'A' ? game.teamAName : game.teamBName;
+    if (!confirm(`Declare ${winnerName} the winner? This settles all bets for this game.`)) return;
     setWinFlash(team);
     declareWinner(team);
     setTimeout(() => setWinFlash(null), 600);

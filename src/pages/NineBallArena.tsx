@@ -46,6 +46,8 @@ export default function NineBallArena() {
   }, []);
 
   const handleWin = (team: 'A' | 'B') => {
+    const winnerName = team === 'A' ? game.teamAName : game.teamBName;
+    if (!confirm(`Declare ${winnerName} the winner? This settles all bets for this game.`)) return;
     setWinFlash(team);
     declareWinner(team);
     setTimeout(() => setWinFlash(null), 600);
