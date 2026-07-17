@@ -10,6 +10,7 @@ interface Props {
   avatarBSrc?: string;
   avatarBPosition?: string;
   hideBallCount?: boolean;
+  hideBreakIndicator?: boolean;
 }
 
 function TipButton({ playerName, color, align }: { playerName: string; color: string; align: 'left' | 'right' }) {
@@ -127,7 +128,7 @@ function TipButton({ playerName, color, align }: { playerName: string; color: st
   );
 }
 
-export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, stackedLayout, avatarASrc, avatarBSrc, avatarBPosition, hideBallCount }: Props & { hideAdminControls?: boolean; stackedLayout?: boolean }) {
+export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, stackedLayout, avatarASrc, avatarBSrc, avatarBPosition, hideBallCount, hideBreakIndicator }: Props & { hideAdminControls?: boolean; stackedLayout?: boolean }) {
   const avatarA = avatarASrc || '/alex.png';
   const avatarB = avatarBSrc || '/tony.jpg';
   const avatarBPos = avatarBPosition || '70% center';
@@ -178,7 +179,7 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
         <div className="flex-1 grid gap-4" style={{ gridTemplateColumns: '112px 1fr', minWidth: 0 }}>
           <div className="flex flex-col items-center gap-1">
             <div className="flex items-center gap-1">
-              {teamAHasBreak && (
+              {!hideBreakIndicator && teamAHasBreak && (
                 <span className="mono font-black text-xs flex items-center justify-center" style={{ width: 18, height: 18, border: '1.5px solid var(--gold)', color: 'var(--gold)', background: 'rgba(255,215,0,0.1)', flexShrink: 0 }}>B</span>
               )}
               {editingA && isAdmin ? (
@@ -250,7 +251,7 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
               ) : (
                 <div className="text-xs font-black uppercase tracking-widest cursor-pointer text-center leading-tight" style={{ color: 'var(--red)' }} onClick={() => isAdmin && setEditingB(true)}>{teamBName}</div>
               )}
-              {!teamAHasBreak && (
+              {!hideBreakIndicator && !teamAHasBreak && (
                 <span className="mono font-black text-xs flex items-center justify-center" style={{ width: 18, height: 18, border: '1.5px solid var(--gold)', color: 'var(--gold)', background: 'rgba(255,215,0,0.1)', flexShrink: 0 }}>B</span>
               )}
             </div>
@@ -273,7 +274,7 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
         {/* TEAM A */}
         <div className="flex-1 flex flex-col items-center gap-2 min-w-0">
           <div className="flex items-center gap-1">
-            {teamAHasBreak && (
+            {!hideBreakIndicator && teamAHasBreak && (
               <span className="mono font-black text-xs flex items-center justify-center" style={{ width: 18, height: 18, border: '1.5px solid var(--gold)', color: 'var(--gold)', background: 'rgba(255,215,0,0.1)', flexShrink: 0 }}>B</span>
             )}
             {editingA && isAdmin ? (
@@ -322,7 +323,7 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
             ) : (
               <div className="text-xs font-black uppercase tracking-widest cursor-pointer text-center leading-tight" style={{ color: 'var(--red)' }} onClick={() => isAdmin && setEditingB(true)}>{teamBName}</div>
             )}
-            {!teamAHasBreak && (
+            {!hideBreakIndicator && !teamAHasBreak && (
               <span className="mono font-black text-xs flex items-center justify-center" style={{ width: 18, height: 18, border: '1.5px solid var(--gold)', color: 'var(--gold)', background: 'rgba(255,215,0,0.1)', flexShrink: 0 }}>B</span>
             )}
           </div>
