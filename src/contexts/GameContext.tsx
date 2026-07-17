@@ -244,9 +244,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     socket.on('gb:state', (incoming: GameState) => {
       if (!incoming) return;
+      // Merge with defaults, never trust the incoming payload wholesale — the
+      // server's cached state can predate a deploy that added new GameState
+      // fields (e.g. matchTeamAQueue), and a raw replace leaves those undefined,
+      // crashing anything that reads .length off them.
+      const merged = { ...defaultGame, ...incoming };
       suppressEmitRef.current = true;
-      setGame(incoming);
-      gameRef.current = incoming;
+      setGame(merged);
+      gameRef.current = merged;
       suppressEmitRef.current = false;
     });
 
