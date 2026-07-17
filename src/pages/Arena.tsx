@@ -141,7 +141,7 @@ export default function Arena() {
                   <Link to="/whitebook" className="btn btn-ghost px-4 py-2 text-xs font-black tracking-widest" style={{ textDecoration: 'none' }}>
                     WHITEBOOK
                   </Link>
-                  <button className="btn btn-ghost px-4 py-2 text-xs font-black tracking-widest" onClick={() => { resetQueues(); setAdminOpen(false); }}>
+                  <button className="btn btn-ghost px-4 py-2 text-xs font-black tracking-widest" onClick={() => { if (confirm('Clear all bet queues? This refunds every pending bet.')) { resetQueues(); setAdminOpen(false); } }}>
                     CLEAR QUEUES
                   </button>
                   <button
