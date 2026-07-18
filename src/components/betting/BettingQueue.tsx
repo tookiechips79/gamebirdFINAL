@@ -402,7 +402,7 @@ export default function BettingQueue({ compactInput }: { compactInput?: boolean 
             <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)]">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[var(--gold)]" style={{ boxShadow: '0 0 6px var(--gold)' }} />
-                <span className="text-xs mono tracking-widest text-[var(--text)]">MATCH BETTING QUEUE</span>
+                <span className="text-xs mono tracking-widest text-[var(--text)]">MATCH BETTING QUEUE <span style={{ color: 'rgba(255,255,255,0.4)' }}>(winner of entire match)</span></span>
               </div>
               <div className="flex items-center gap-3 text-xs mono">
                 <span style={{ color: 'var(--green)' }}>{matchBookedBets.length} MATCHED</span>
