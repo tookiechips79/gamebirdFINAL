@@ -130,8 +130,8 @@ export default function Privacy() {
               Contact your Game Bird administrator for any questions about your data or this policy.
             </p>
             <div className="flex gap-3 mt-1 flex-wrap justify-center">
-              <Link to="/arena" className="btn btn-cyan px-8 py-3 text-sm" style={{ textDecoration: 'none' }}>
-                ▶ ENTER ARENA
+              <Link to="/9ball-arena" className="btn btn-cyan px-8 py-3 text-sm" style={{ textDecoration: 'none' }}>
+                ▶ ENTER 9 BALL ARENA
               </Link>
               <Link to="/terms" className="btn btn-ghost px-8 py-3 text-sm" style={{ textDecoration: 'none' }}>
                 TERMS

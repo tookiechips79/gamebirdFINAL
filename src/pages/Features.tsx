@@ -335,8 +335,8 @@ export default function Features() {
             Join users already winning real coins on Game Bird. Enter the arena and start your betting journey today.
           </p>
           <div className="flex gap-3 mt-1">
-            <Link to="/arena" className="btn btn-cyan px-8 py-3 text-sm" style={{ textDecoration: 'none' }}>
-              ▶ ENTER ARENA
+            <Link to="/9ball-arena" className="btn btn-cyan px-8 py-3 text-sm" style={{ textDecoration: 'none' }}>
+              ▶ ENTER 9 BALL ARENA
             </Link>
           </div>
         </div>

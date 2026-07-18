@@ -154,8 +154,8 @@ function MembershipTab({ currentUser, navigate }: { currentUser: User; navigate:
       {syncMsg && <div className="text-xs mono text-center" style={{ color: 'var(--green)' }}>{syncMsg}</div>}
 
       <div className="flex gap-3">
-        <Link to="/arena" className="btn btn-cyan flex-1 py-3 text-sm font-black tracking-widest text-center" style={{ textDecoration: 'none' }}>
-          ▶ ENTER ARENA
+        <Link to="/9ball-arena" className="btn btn-cyan flex-1 py-3 text-sm font-black tracking-widest text-center" style={{ textDecoration: 'none' }}>
+          ▶ ENTER 9 BALL ARENA
         </Link>
         <button className="btn btn-ghost flex-1 py-3 text-sm font-black tracking-widest" onClick={() => { setCurrentUser(null); if (isAdmin) setIsAdmin(false); navigate('/'); }}>
           LOG OUT
