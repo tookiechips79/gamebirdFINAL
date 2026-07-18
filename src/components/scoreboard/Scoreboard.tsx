@@ -155,17 +155,6 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
     <div className="flex items-center gap-3">
       <span className="mono text-xs font-black tracking-[0.3em] uppercase" style={{ color: 'var(--gold)' }}>GameBird Scorebox</span>
       <div className="flex-1 border-t border-[var(--border)]" />
-      {streamUrl && (
-        <a
-          href={streamUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mono text-xs font-black tracking-widest uppercase flex items-center gap-1 flex-shrink-0"
-          style={{ color: 'var(--red)', border: '1px solid var(--red)', padding: '3px 10px', textDecoration: 'none' }}
-        >
-          📺 WATCH LIVE
-        </a>
-      )}
     </div>
     <div className="hud-panel bracket w-full overflow-hidden">
       {/* Description ticker at top */}
@@ -191,6 +180,20 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
         <TimerDisplay hideGameType={hideGameType} />
         <div />
       </div>
+
+      {streamUrl && (
+        <div className="flex justify-center px-4 py-2 border-b border-[var(--border)]">
+          <a
+            href={streamUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mono text-xs font-black tracking-widest uppercase flex items-center gap-1"
+            style={{ color: 'var(--red)', border: '1px solid var(--red)', padding: '3px 10px', textDecoration: 'none' }}
+          >
+            📺 WATCH LIVE
+          </a>
+        </div>
+      )}
 
       {/* ── DESKTOP layout (original, untouched) ── */}
       <div className={`${stackedLayout ? 'hidden' : 'hidden lg:flex'} items-center px-4 py-4 gap-4`}>
