@@ -44,7 +44,7 @@ function fmt(ms: number) {
   return `${h}.${m}.${s}.${cs}`;
 }
 
-export default function TimerDisplay() {
+export default function TimerDisplay({ hideGameType }: { hideGameType?: boolean } = {}) {
   const { game, isAdmin, startTimer, pauseTimer, resetTimer, clockOffset } = useGame();
   const { timerElapsedMs, timerStartedAt, isTimerRunning } = game;
 
@@ -93,7 +93,7 @@ export default function TimerDisplay() {
           <button className="btn btn-ghost px-3 py-1 text-xs" onClick={resetTimer}>
             ↺ RESET
           </button>
-          <span className="mono text-xs font-black tracking-widest" style={{ color: '#fff' }}>1-POCKET</span>
+          {!hideGameType && <span className="mono text-xs font-black tracking-widest" style={{ color: '#fff' }}>1-POCKET</span>}
         </div>
       )}
     </div>

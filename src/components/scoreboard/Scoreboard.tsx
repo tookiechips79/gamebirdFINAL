@@ -172,7 +172,7 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
             </>
           )}
         </div>
-        <TimerDisplay />
+        <TimerDisplay hideGameType={hideGameType} />
         <div style={{ minWidth: 60 }} />
       </div>
 
