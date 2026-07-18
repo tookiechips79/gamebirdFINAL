@@ -228,7 +228,7 @@ export default function Whitebook() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!isAdmin) navigate('/arena');
+    if (!isAdmin) navigate('/9ball-arena');
   }, [isAdmin]);
 
   if (!isAdmin) return null;

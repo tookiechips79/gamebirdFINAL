@@ -58,7 +58,7 @@ export default function Postbox() {
             <button className="btn btn-gold px-6 py-3 text-sm font-black tracking-widest" onClick={() => navigate('/membership')}>
               UPGRADE TO PREMIUM
             </button>
-            <button className="btn btn-ghost px-4 py-2 text-xs" onClick={() => navigate('/arena')}>
+            <button className="btn btn-ghost px-4 py-2 text-xs" onClick={() => navigate('/9ball-arena')}>
               BACK TO ARENA
             </button>
           </main>

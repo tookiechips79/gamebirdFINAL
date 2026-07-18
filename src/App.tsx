@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -34,7 +34,6 @@ function UserKickedNotice() {
 import { UserProvider, useUser } from '@/contexts/UserContext';
 import { GameProvider } from '@/contexts/GameContext';
 import Landing from '@/pages/Landing';
-import Arena from '@/pages/Arena';
 import NineBallArena from '@/pages/NineBallArena';
 import Whitebook from '@/pages/Whitebook';
 import Features from '@/pages/Features';
@@ -63,7 +62,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/arena" element={<Arena />} />
+            <Route path="/arena" element={<Navigate to="/9ball-arena" replace />} />
             <Route path="/9ball-arena" element={<NineBallArena />} />
             <Route path="/admin" element={<AdminArena />} />
             <Route path="/whitebook" element={<Whitebook />} />

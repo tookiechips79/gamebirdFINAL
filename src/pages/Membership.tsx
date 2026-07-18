@@ -114,7 +114,7 @@ export default function Membership() {
       setSuccessMsg(`✓ ${reloadAmt} coins added to your account!`);
     }
     setClientSecret('');
-    setTimeout(() => { setSuccessMsg(''); navigate('/arena'); }, 2500);
+    setTimeout(() => { setSuccessMsg(''); navigate('/9ball-arena'); }, 2500);
   };
 
   const stripeOptions = clientSecret ? {
@@ -153,7 +153,7 @@ export default function Membership() {
             {!currentUser && (
               <div className="mt-2 px-4 py-3 text-center" style={{ border: '1px solid var(--red)', background: 'rgba(255,0,64,0.08)' }}>
                 <div className="text-xs mono text-[var(--red)] uppercase tracking-widest mb-2">No player selected</div>
-                <Link to="/arena" className="btn btn-red px-4 py-1.5 text-xs font-black tracking-widest" style={{ textDecoration: 'none' }}>GO TO ARENA</Link>
+                <Link to="/9ball-arena" className="btn btn-red px-4 py-1.5 text-xs font-black tracking-widest" style={{ textDecoration: 'none' }}>GO TO 9 BALL ARENA</Link>
               </div>
             )}
           </div>
@@ -227,7 +227,7 @@ export default function Membership() {
                 >
                   {loading ? '⟳  LOADING...' : mode === 'subscription' ? '★  SUBSCRIBE — $20/mo' : `◈  RELOAD ${reloadAmt} COINS — $${reloadAmt}`}
                 </button>
-                <button className="btn btn-ghost w-full py-2 text-xs font-black tracking-widest" onClick={() => navigate('/arena')}>CANCEL</button>
+                <button className="btn btn-ghost w-full py-2 text-xs font-black tracking-widest" onClick={() => navigate('/9ball-arena')}>CANCEL</button>
               </div>
             ) : (
               stripeOptions && (

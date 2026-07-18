@@ -60,7 +60,7 @@ export default function AdminArena() {
   const unackedAlerts = driftCount + recentSyncFailures;
 
   
-  if (!isAdmin) return <Navigate to="/arena" replace />;
+  if (!isAdmin) return <Navigate to="/9ball-arena" replace />;
 
   const totalAllCoins = users.filter(u => !u.isAdmin).reduce((s, u) => s + u.credits, 0);
 
@@ -115,7 +115,7 @@ export default function AdminArena() {
             <button
               className="btn px-2 py-1 text-xs font-black tracking-widest"
               style={{ color: 'var(--red)', border: '1px solid var(--red)' }}
-              onClick={() => { setIsAdmin(false); navigate('/arena'); }}
+              onClick={() => { setIsAdmin(false); navigate('/9ball-arena'); }}
             >
               EXIT
             </button>
