@@ -212,7 +212,7 @@ export default function AdminArena() {
             <div className="flex gap-2">
               <Link to="/whitebook" className="btn btn-ghost py-1 text-xs font-black tracking-widest flex-1 text-center" style={{ textDecoration: 'none' }}>WHITEBOOK</Link>
               <button className="btn btn-ghost py-1 text-xs font-black tracking-widest flex-1" onClick={() => { if (confirm('Clear all bet queues? This refunds every pending bet.')) resetQueues(); }}>CLEAR Q</button>
-              <button className="btn btn-ghost py-1 text-xs font-black tracking-widest flex-1" onClick={() => { if (confirm('Reset all scores to 0?')) updateGame({ teamAGames: 0, teamBGames: 0, teamABalls: 0, teamBBalls: 0, currentGameNumber: 1 }); }}>RESET</button>
+              <button className="btn btn-ghost py-1 text-xs font-black tracking-widest flex-1" onClick={() => { if (confirm('Reset all scores to 0?')) updateGame({ teamAGames: 0, teamBGames: 0, teamABalls: 0, teamBBalls: 0, currentGameNumber: 1, lastWinner: null }); }}>RESET</button>
             </div>
           </div>
 

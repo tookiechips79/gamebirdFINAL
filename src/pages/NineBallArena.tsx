@@ -196,7 +196,7 @@ export default function NineBallArena() {
                     className="btn btn-ghost px-4 py-2 text-xs font-black tracking-widest"
                     onClick={() => {
                       if (confirm('Reset all scores to 0?')) {
-                        updateGame({ teamAGames: 0, teamBGames: 0, teamABalls: 0, teamBBalls: 0, currentGameNumber: 1 });
+                        updateGame({ teamAGames: 0, teamBGames: 0, teamABalls: 0, teamBBalls: 0, currentGameNumber: 1, lastWinner: null });
                         setAdminOpen(false);
                       }
                     }}
