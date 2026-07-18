@@ -226,7 +226,7 @@ export default function NineBallArena() {
           {fetchingData ? '⟳ FETCHING...' : '⟳ FETCH DATA'}
         </button>
         <PlayerBank />
-        <Scoreboard onTeamAWin={() => handleWin('A')} onTeamBWin={() => handleWin('B')} hideAdminControls avatarASrc="/james.jpeg" avatarBSrc="/ross.jpeg" avatarBPosition="0% center" hideBallCount hideBreakIndicator hideGameType avatarSize={224} />
+        <Scoreboard onTeamAWin={() => handleWin('A')} onTeamBWin={() => handleWin('B')} hideAdminControls avatarASrc="/james.jpeg" avatarBSrc="/ross.jpeg" avatarBPosition="0% center" hideBallCount hideBreakIndicator hideGameType avatarSize={224} streamUrl="https://youtube.com/@thebiscuitshow6583?si=3t4_Lk_HowJLlLye" />
         <BettingQueue />
         <GameHistory hideBallCount />
         <BetLedger />
