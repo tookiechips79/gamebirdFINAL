@@ -113,10 +113,16 @@ function UserRow({ user }: { user: User }) {
       </div>
 
       {/* Admin controls */}
-      <button onClick={makeAdmin}
-        style={{ background: 'none', border: '1px solid #a855f7', color: '#a855f7', fontWeight: 900, fontSize: 11, padding: '6px 0', cursor: 'pointer', letterSpacing: 1 }}>
-        MAKE ADMIN
-      </button>
+      {user.isAdmin ? (
+        <div style={{ textAlign: 'center', color: '#a855f7', fontWeight: 900, fontSize: 11, letterSpacing: 1, padding: '6px 0' }}>
+          ★ ADMIN — manage in the ADMINS section above
+        </div>
+      ) : (
+        <button onClick={makeAdmin}
+          style={{ background: 'none', border: '1px solid #a855f7', color: '#a855f7', fontWeight: 900, fontSize: 11, padding: '6px 0', cursor: 'pointer', letterSpacing: 1 }}>
+          MAKE ADMIN
+        </button>
+      )}
     </div>
   );
 }
@@ -230,8 +236,8 @@ export default function UserManager({ onClose }: { onClose: () => void }) {
 
       {/* User list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 16 }}>
-        {users.filter(u => !u.isAdmin).map(u => <UserRow key={u.id} user={u} />)}
-        {users.filter(u => !u.isAdmin).length === 0 && (
+        {users.filter(u => u.id !== 'admin').map(u => <UserRow key={u.id} user={u} />)}
+        {users.filter(u => u.id !== 'admin').length === 0 && (
           <div style={{ color: '#555', textAlign: 'center', padding: 40, fontSize: 13 }}>NO PLAYERS YET</div>
         )}
       </div>
