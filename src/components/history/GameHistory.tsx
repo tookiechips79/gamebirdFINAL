@@ -7,7 +7,7 @@ function formatDuration(secs: number) {
   return `${m}:${s}`;
 }
 
-export default function GameHistory() {
+export default function GameHistory({ hideBallCount }: { hideBallCount?: boolean } = {}) {
   const { gameHistory, clearHistory, isAdmin, game } = useGame();
   const [open, setOpen] = useState(true);
 
@@ -75,11 +75,13 @@ export default function GameHistory() {
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-xs mono flex-shrink-0">
-                    <div className="flex gap-1.5 items-center">
-                      <span style={{ color: 'var(--cyan)' }}>{nameA} {record.teamABalls ?? record.teamAScore}</span>
-                      <span className="text-[var(--text)]">–</span>
-                      <span style={{ color: 'var(--red)' }}>{record.teamBBalls ?? record.teamBScore} {nameB}</span>
-                    </div>
+                    {!hideBallCount && (
+                      <div className="flex gap-1.5 items-center">
+                        <span style={{ color: 'var(--cyan)' }}>{nameA} {record.teamABalls ?? record.teamAScore}</span>
+                        <span className="text-[var(--text)]">–</span>
+                        <span style={{ color: 'var(--red)' }}>{record.teamBBalls ?? record.teamBScore} {nameB}</span>
+                      </div>
+                    )}
                     <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{record.totalAmount * 2} ITM</span>
                   </div>
                 </div>

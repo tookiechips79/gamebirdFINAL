@@ -378,7 +378,7 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
       </div>
 
       {/* Game ticker */}
-      <TickerBar />
+      <TickerBar hideBallCount={hideBallCount} />
     </div>
     </>
   );
@@ -406,14 +406,14 @@ function DescriptionTicker() {
   );
 }
 
-function TickerBar() {
+function TickerBar({ hideBallCount }: { hideBallCount?: boolean }) {
   const { game } = useGame();
   const { teamAName, teamBName, teamAGames, teamBGames, teamABalls, teamBBalls, bookedBets, totalBookedAmount, currentGameNumber, lastWinner } = game;
 
   const items = [
     `GAME #${currentGameNumber}`,
     `${teamAName} ${teamAGames} — ${teamBGames} ${teamBName}`,
-    `BALLS — ${teamAName}: ${teamABalls}  ${teamBName}: ${teamBBalls}`,
+    ...(hideBallCount ? [] : [`BALLS — ${teamAName}: ${teamABalls}  ${teamBName}: ${teamBBalls}`]),
     `${bookedBets.length} MATCHED BETS`,
     `${totalBookedAmount * 2} COINS IN THE MATCH`,
     lastWinner ? `LAST WINNER: ${lastWinner === 'A' ? teamAName : teamBName}` : 'BETTING LIVE',
