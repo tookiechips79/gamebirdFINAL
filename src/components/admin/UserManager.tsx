@@ -121,6 +121,32 @@ function UserRow({ user }: { user: User }) {
   );
 }
 
+function AdminRow({ user }: { user: User }) {
+  const { requestAllUsers } = useUser();
+  const serverUrl = window.location.hostname === 'localhost'
+    ? 'http://localhost:3001'
+    : 'https://gamebird-app-production.up.railway.app';
+
+  const revokeAdmin = async () => {
+    if (!confirm(`Revoke admin controls from ${user.name}?`)) return;
+    await fetch(`${serverUrl}/api/users/${user.id}/admin`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isAdmin: false, name: user.name }),
+    });
+    requestAllUsers();
+  };
+
+  return (
+    <div style={{ background: '#0a0a1a', border: '1px solid rgba(168,85,247,0.4)', padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <span style={{ color: '#a855f7', fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 2 }}>{user.name}</span>
+      <button onClick={revokeAdmin}
+        style={{ background: 'none', border: '1px solid #ff0040', color: '#ff0040', fontWeight: 900, fontSize: 11, padding: '6px 12px', cursor: 'pointer', letterSpacing: 1 }}>
+        REVOKE ADMIN
+      </button>
+    </div>
+  );
+}
+
 export default function UserManager({ onClose }: { onClose: () => void }) {
   const { users, addUser, updateMembership, requestAllUsers, mergeServerUsers } = useUser();
   const [newName, setNewName] = useState('');
@@ -193,6 +219,14 @@ export default function UserManager({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '6px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>✕ CLOSE</button>
         </div>
       </div>
+
+      {/* Admins */}
+      {users.filter(u => u.isAdmin && u.id !== 'admin').length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '16px 16px 0' }}>
+          <span style={{ color: '#a855f7', fontWeight: 900, fontSize: 12, letterSpacing: 2 }}>ADMINS</span>
+          {users.filter(u => u.isAdmin && u.id !== 'admin').map(u => <AdminRow key={u.id} user={u} />)}
+        </div>
+      )}
 
       {/* User list */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 16 }}>

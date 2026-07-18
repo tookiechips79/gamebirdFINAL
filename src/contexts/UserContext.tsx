@@ -942,14 +942,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     // Remove any locally cached users the server has marked as deleted
     let merged = usersRef.current.filter(u => !deletedSet.has(u.id));
     serverUsers.forEach(su => {
-      if (su.isAdmin) return;
+      if (su.isAdmin && su.id === 'admin') return;
       const idx = merged.findIndex(m => m.id === su.id);
       const isPremium = su.membershipStatus === 'premium';
       const premiumMembership = { tier: 'premium' as const, startDate: Date.now(), renewsAt: Date.now() + 365*24*60*60*1000 };
       if (idx === -1) {
         merged.push({
           id: su.id, name: su.name, credits: su.credits || 0,
-          isAdmin: false, pendingBets: [],
+          isAdmin: !!su.isAdmin, pendingBets: [],
           membership: isPremium ? premiumMembership : undefined,
         });
       } else {
@@ -958,6 +958,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const writeProtected = (recentlyPersistedRef.current.get(su.id) ?? 0) > Date.now();
         merged[idx] = {
           ...merged[idx],
+          isAdmin: !!su.isAdmin,
           credits: writeProtected ? merged[idx].credits : (su.credits ?? merged[idx].credits),
           // DB is authoritative for membership — always trust server status
           membership: isPremium ? (merged[idx].membership?.tier === 'premium' && !merged[idx].membership?.cancelledAt ? merged[idx].membership : premiumMembership) : undefined,
