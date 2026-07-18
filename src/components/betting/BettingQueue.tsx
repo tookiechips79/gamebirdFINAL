@@ -213,7 +213,7 @@ export default function BettingQueue({ compactInput }: { compactInput?: boolean 
 
   const { teamAName, teamBName, teamAQueue, teamBQueue, bookedBets,
     nextTeamAQueue, nextTeamBQueue, nextBookedBets,
-    totalBookedAmount, nextTotalBookedAmount,
+    totalBookedAmount, nextTotalBookedAmount, currentGameNumber,
     matchTeamAQueue, matchTeamBQueue, matchBookedBets, matchTotalBookedAmount } = game;
 
   const [notice, setNotice] = useState<{ title: string; message: string; action?: { label: string; to: string } } | null>(null);
@@ -356,7 +356,7 @@ export default function BettingQueue({ compactInput }: { compactInput?: boolean 
             <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)]">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[var(--green)]" style={{ boxShadow: '0 0 6px var(--green)' }} />
-                <span className="text-xs mono tracking-widest text-[var(--text)]">CURRENT GAME QUEUE</span>
+                <span className="text-xs mono tracking-widest text-[var(--text)]">CURRENT GAME QUEUE <span style={{ color: 'rgba(255,255,255,0.4)' }}>(Game #{currentGameNumber})</span></span>
               </div>
               <div className="flex items-center gap-3 text-xs mono">
                 <span style={{ color: 'var(--green)' }}>{matchedCount} MATCHED</span>
@@ -379,7 +379,7 @@ export default function BettingQueue({ compactInput }: { compactInput?: boolean 
           {/* Next game queue */}
           <div className="hud-panel overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)]">
-              <span className="text-xs mono tracking-widest text-[var(--text)]">NEXT GAME QUEUE</span>
+              <span className="text-xs mono tracking-widest text-[var(--text)]">NEXT GAME QUEUE <span style={{ color: 'rgba(255,255,255,0.4)' }}>(Game #{currentGameNumber + 1})</span></span>
               {(nextTeamAQueue.length + nextTeamBQueue.length) > 0 && (
                 <span className="text-xs mono" style={{ color: 'var(--gold)' }}>{nextTotalBookedAmount * 2} ITM</span>
               )}
