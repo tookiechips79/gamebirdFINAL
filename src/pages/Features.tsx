@@ -212,7 +212,7 @@ export default function Features() {
                 ))}
               </div>
               <div className="px-4 py-2.5 border-t border-[var(--border)]">
-                <Link to="/arena" className="btn btn-cyan w-full py-2 text-xs" style={{ textDecoration: 'none' }}>
+                <Link to="/9ball-arena" className="btn btn-cyan w-full py-2 text-xs" style={{ textDecoration: 'none' }}>
                   GET FREE ACCESS
                 </Link>
               </div>
