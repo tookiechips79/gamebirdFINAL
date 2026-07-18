@@ -250,6 +250,11 @@ export async function updateUserMembership(userId, status) {
   await db.query('UPDATE users SET membership_status = $1 WHERE id = $2', [status, userId]);
 }
 
+export async function setUserAdminStatus(userId, isAdmin) {
+  const db = getPool();
+  await db.query('UPDATE users SET is_admin = $1 WHERE id = $2', [isAdmin, userId]);
+}
+
 export async function deleteUser(userId) {
   const db = getPool();
   // Soft delete — marks as deleted so syncs never re-add this user

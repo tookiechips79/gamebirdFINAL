@@ -45,6 +45,7 @@ import {
   getGameSnapshots,
   clearGameSnapshots,
   updateUserMembership,
+  setUserAdminStatus,
   upsertUserFromSocket,
   deleteUser,
 } from './src/db/database.js';
@@ -1133,6 +1134,25 @@ app.post('/api/users/:userId/membership', async (req, res) => {
   } catch (error) {
     console.error('❌ [MEMBERSHIP] Error:', error);
     res.status(500).json({ error: 'Failed to update membership' });
+  }
+});
+
+// Grant or revoke admin controls for a user account
+app.post('/api/users/:userId/admin', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { isAdmin, name } = req.body;
+    if (typeof isAdmin !== 'boolean') return res.status(400).json({ error: 'isAdmin must be a boolean' });
+    const memUser = gbUsersStore.find(u => u.id === userId);
+    const userName = name || memUser?.name;
+    if (userName) await upsertUserFromSocket(userId, userName, isAdmin);
+    await setUserAdminStatus(userId, isAdmin);
+    console.log(`✅ [ADMIN-GRANT] ${userId} isAdmin set to ${isAdmin}`);
+    io.emit('users:push');
+    res.json({ success: true, userId, isAdmin });
+  } catch (error) {
+    console.error('❌ [ADMIN-GRANT] Error:', error);
+    res.status(500).json({ error: 'Failed to update admin status' });
   }
 });
 

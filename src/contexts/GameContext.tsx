@@ -162,7 +162,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // isAdmin is true when the flag is set (password was entered) OR current user is an admin account
   // Non-admin users cannot gain admin — if a non-admin is logged in, flag is ignored
-  const isAdmin = isAdminFlag && (currentUser === null || currentUser.isAdmin === true);
+  const isAdmin = isAdminFlag || (currentUser !== null && currentUser.isAdmin === true);
 
   const setIsAdmin = (v: boolean) => {
     setIsAdminState(v);

@@ -3,7 +3,7 @@ import { useUser } from '@/contexts/UserContext';
 import { User } from '@/types';
 
 function UserRow({ user }: { user: User }) {
-  const { addCredits, deleteUser, updateMembership } = useUser();
+  const { addCredits, deleteUser, updateMembership, requestAllUsers } = useUser();
   const [custom, setCustom] = useState('');
 
   const isPremium = user.membership?.tier === 'premium' && !user.membership?.cancelledAt;
@@ -26,6 +26,15 @@ function UserRow({ user }: { user: User }) {
       body: JSON.stringify({ status: 'free', name: user.name }),
     });
     updateMembership(user.id, { tier: 'premium', startDate: user.membership?.startDate ?? Date.now(), cancelledAt: Date.now() });
+  };
+
+  const makeAdmin = async () => {
+    if (!confirm(`Grant admin controls to ${user.name}? They will be able to manage games, scores, and payouts without the shared admin password.`)) return;
+    await fetch(`${serverUrl}/api/users/${user.id}/admin`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isAdmin: true, name: user.name }),
+    });
+    requestAllUsers();
   };
 
   return (
@@ -102,6 +111,12 @@ function UserRow({ user }: { user: User }) {
         <button onClick={() => { const n = parseInt(custom); if (n > 0) { addCredits(user.id, -n); setCustom(''); } }}
           style={{ background: 'none', border: '1px solid #ff0040', color: '#ff0040', fontWeight: 900, fontSize: 12, padding: '6px 14px', cursor: 'pointer' }}>SUB</button>
       </div>
+
+      {/* Admin controls */}
+      <button onClick={makeAdmin}
+        style={{ background: 'none', border: '1px solid #a855f7', color: '#a855f7', fontWeight: 900, fontSize: 11, padding: '6px 0', cursor: 'pointer', letterSpacing: 1 }}>
+        MAKE ADMIN
+      </button>
     </div>
   );
 }
