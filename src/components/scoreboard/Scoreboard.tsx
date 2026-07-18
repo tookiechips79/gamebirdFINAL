@@ -155,8 +155,9 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
     <div className="hud-panel bracket w-full overflow-hidden">
       {/* Description ticker at top */}
       <DescriptionTicker />
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-1.5 border-b border-[var(--border)]">
+      {/* Top bar — grid with equal side columns so TimerDisplay stays mathematically
+          centered even when the left slot is empty (hideGameNumber/hideGameType) */}
+      <div className="grid items-center px-4 py-1.5 border-b border-[var(--border)]" style={{ gridTemplateColumns: '1fr auto 1fr' }}>
         <div className="flex items-center gap-2">
           {!hideGameNumber && (
             <span className="mono text-xs font-black tracking-widest" style={{ color: 'var(--gold)' }}>
@@ -173,7 +174,7 @@ export default function Scoreboard({ onTeamAWin, onTeamBWin, hideAdminControls, 
           )}
         </div>
         <TimerDisplay hideGameType={hideGameType} />
-        <div style={{ minWidth: 60 }} />
+        <div />
       </div>
 
       {/* ── DESKTOP layout (original, untouched) ── */}
