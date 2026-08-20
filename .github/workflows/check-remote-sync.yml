@@ -1,0 +1,25 @@
+name: Check remote sync
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  check-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare main with Game-Bird-beta
+        run: |
+          FINAL_SHA=$(git ls-remote https://github.com/tookiechips79/gamebirdFINAL.git refs/heads/main | cut -f1)
+          BETA_SHA=$(git ls-remote https://github.com/tookiechips79/Game-Bird-beta.git refs/heads/main | cut -f1)
+
+          echo "gamebirdFINAL main:  $FINAL_SHA"
+          echo "Game-Bird-beta main: $BETA_SHA"
+
+          if [ "$FINAL_SHA" != "$BETA_SHA" ]; then
+            echo "::error::main has diverged between remotes. gamebirdFINAL is at $FINAL_SHA, Game-Bird-beta is at $BETA_SHA. Push the same commit to both."
+            exit 1
+          fi
+
+          echo "Remotes are in sync."
