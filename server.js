@@ -299,7 +299,7 @@ const socketArenaMap = new Map();
 // Single-admin-session enforcement, per arena — last successful login wins and kicks
 // any previously active admin socket, preventing two admins from taking conflicting
 // actions (e.g. two declareWinner calls) on the same arena at once.
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '1980';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '1979';
 const adminSessionByArena = new Map(); // arenaId -> socket.id
 
 const getGameState = (arenaId = 'default') => {
