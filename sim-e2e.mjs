@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 
 const APP_URL    = 'https://game-bird-beta.vercel.app';
 const API_URL    = 'https://gamebird-app-production.up.railway.app';
-const ADMIN_PW   = '1980';
+const ADMIN_PW   = '1979';
 const BET_AMOUNT = 100;
 const NUM_GAMES  = 1;
 const BETS_PER_PLAYER = 1; // each player places this many bets in each game
